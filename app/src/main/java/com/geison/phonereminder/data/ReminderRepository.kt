@@ -55,6 +55,12 @@ class ReminderRepository(private val context: Context) {
         return mutableState.value.reminders.firstOrNull { it.id == id }
     }
 
+    fun replaceReminders(reminders: List<ReminderItem>) {
+        updateState {
+            copy(reminders = reminders)
+        }
+    }
+
     private fun updateState(transform: AppState.() -> AppState) {
         val updated = mutableState.value.transform()
         mutableState.value = updated

@@ -1,9 +1,11 @@
 package com.geison.phonereminder
 
 import android.app.Application
+import android.net.Uri
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
+import com.geison.phonereminder.data.ReminderExchange
 import com.geison.phonereminder.data.ReminderItem
 import com.geison.phonereminder.data.ReminderRepository
 import com.geison.phonereminder.data.ScheduleSettings
@@ -71,6 +73,48 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun rescheduleNow() {
         NotificationScheduler.scheduleToday(getApplication())
+    }
+
+    fun exportReminders(uri: Uri): String {
+        val content = ReminderExchange.export(state.value)
+        return runCatching {
+            getApplication<Application>().contentResolver.openOutputStream(uri)?.bufferedWriter()?.use { writer ->
+                writer.write(content)
+            } ?: error("Could not open the selected file.")
+        }.fold(
+            onSuccess = {
+                val count = state.value.reminders.size
+                if (count == 1) {
+                    "Exported 1 reminder."
+                } else {
+                    "Exported $count reminders."
+                }
+            },
+            onFailure = { error ->
+                "Export failed: ${error.message ?: "Unknown error."}"
+            },
+        )
+    }
+
+    fun importReminders(uri: Uri): String {
+        return runCatching {
+            val content = getApplication<Application>().contentResolver.openInputStream(uri)?.bufferedReader()?.use { reader ->
+                reader.readText()
+            } ?: error("Could not open the selected file.")
+
+            val reminders = ReminderExchange.import(content)
+            repository.replaceReminders(reminders)
+            NotificationScheduler.scheduleToday(getApplication())
+
+            val count = reminders.size
+            if (count == 1) {
+                "Imported 1 reminder."
+            } else {
+                "Imported $count reminders."
+            }
+        }.getOrElse { error ->
+            "Import failed: ${error.message ?: "Unknown error."}"
+        }
     }
 
     companion object {

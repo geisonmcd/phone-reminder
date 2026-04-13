@@ -1,6 +1,8 @@
 package com.geison.phonereminder.ui
 
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -43,11 +45,36 @@ fun ReminderApp(viewModel: MainViewModel) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     var draftReminder by rememberSaveable { mutableStateOf("") }
     var selectedReminderId by rememberSaveable { mutableStateOf<String?>(null) }
+    var showingConfig by rememberSaveable { mutableStateOf(false) }
+    var configMessage by rememberSaveable { mutableStateOf<String?>(null) }
+
+    val exportLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.CreateDocument("text/plain"),
+    ) { uri ->
+        configMessage = if (uri == null) {
+            "Export canceled."
+        } else {
+            viewModel.exportReminders(uri)
+        }
+    }
+
+    val importLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument(),
+    ) { uri ->
+        configMessage = if (uri == null) {
+            "Import canceled."
+        } else {
+            viewModel.importReminders(uri)
+        }
+    }
 
     val selectedReminder = state.reminders.firstOrNull { it.id == selectedReminderId }
-    LaunchedEffect(selectedReminderId, selectedReminder) {
+    LaunchedEffect(selectedReminderId, selectedReminder, showingConfig) {
         if (selectedReminderId != null && selectedReminder == null) {
             selectedReminderId = null
+        }
+        if (selectedReminderId != null) {
+            showingConfig = false
         }
     }
 
@@ -78,6 +105,20 @@ fun ReminderApp(viewModel: MainViewModel) {
                         viewModel.testReminder(text)
                     },
                 )
+            } else if (showingConfig) {
+                BackHandler {
+                    showingConfig = false
+                }
+                ConfigScreen(
+                    message = configMessage,
+                    onBack = { showingConfig = false },
+                    onExport = {
+                        exportLauncher.launch("phone-reminder-export.txt")
+                    },
+                    onImport = {
+                        importLauncher.launch(arrayOf("text/plain"))
+                    },
+                )
             } else {
                 Scaffold { padding ->
                     LazyColumn(
@@ -88,17 +129,34 @@ fun ReminderApp(viewModel: MainViewModel) {
                         verticalArrangement = Arrangement.spacedBy(16.dp),
                     ) {
                         item {
-                            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                                Text(
-                                    text = "Phone Reminder",
-                                    style = MaterialTheme.typography.headlineMedium,
-                                    fontWeight = FontWeight.Bold,
-                                )
-                                Text(
-                                    text = "Create reminders, give each one its own weekly schedule, and let the phone surface them during the week.",
-                                    style = MaterialTheme.typography.bodyLarge,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                )
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.Top,
+                            ) {
+                                Column(
+                                    modifier = Modifier.weight(1f),
+                                    verticalArrangement = Arrangement.spacedBy(6.dp),
+                                ) {
+                                    Text(
+                                        text = "Phone Reminder",
+                                        style = MaterialTheme.typography.headlineMedium,
+                                        fontWeight = FontWeight.Bold,
+                                    )
+                                    Text(
+                                        text = "Create reminders, give each one its own weekly schedule, and let the phone surface them during the week.",
+                                        style = MaterialTheme.typography.bodyLarge,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                }
+                                TextButton(
+                                    onClick = {
+                                        configMessage = null
+                                        showingConfig = true
+                                    },
+                                ) {
+                                    Text("Config")
+                                }
                             }
                         }
 
@@ -142,6 +200,80 @@ fun ReminderApp(viewModel: MainViewModel) {
                         }
                     }
                 }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ConfigScreen(
+    message: String?,
+    onBack: () -> Unit,
+    onExport: () -> Unit,
+    onImport: () -> Unit,
+) {
+    Scaffold { padding ->
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding),
+            contentPadding = PaddingValues(20.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+        ) {
+            item {
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    TextButton(
+                        onClick = onBack,
+                        modifier = Modifier.padding(start = 0.dp),
+                    ) {
+                        Text("Back")
+                    }
+                    Text(
+                        text = "Config",
+                        style = MaterialTheme.typography.headlineMedium,
+                        fontWeight = FontWeight.Bold,
+                    )
+                    Text(
+                        text = "Export all reminders to a text file or import them back later in the same format.",
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+
+            if (!message.isNullOrBlank()) {
+                item {
+                    Card(
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                        ),
+                    ) {
+                        Text(
+                            text = message,
+                            modifier = Modifier.padding(16.dp),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSecondaryContainer,
+                        )
+                    }
+                }
+            }
+
+            item {
+                ConfigActionCard(
+                    title = "Export reminders",
+                    body = "Create a plain text backup file you can read and import later.",
+                    buttonLabel = "Export to txt",
+                    onClick = onExport,
+                )
+            }
+
+            item {
+                ConfigActionCard(
+                    title = "Import reminders",
+                    body = "Load reminders from a text export file. This replaces the current reminders with the file contents.",
+                    buttonLabel = "Import from txt",
+                    onClick = onImport,
+                )
             }
         }
     }
@@ -343,6 +475,35 @@ private fun AddReminderCard(
                 enabled = value.isNotBlank(),
             ) {
                 Text("Create reminder")
+            }
+        }
+    }
+}
+
+@Composable
+private fun ConfigActionCard(
+    title: String,
+    body: String,
+    buttonLabel: String,
+    onClick: () -> Unit,
+) {
+    Card {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold,
+            )
+            Text(
+                text = body,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Button(onClick = onClick) {
+                Text(buttonLabel)
             }
         }
     }
