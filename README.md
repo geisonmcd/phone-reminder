@@ -22,3 +22,10 @@ Simple Kotlin Android app for saving short life lessons and surfacing them as ra
 - Notifications are local to the device. There is no backend or push service.
 - The app uses `AlarmManager.setWindow(...)`, so delivery is intentionally approximate within a small time window instead of exact to the minute.
 - On Android 13 and newer, the app asks for notification permission on first launch.
+
+## Release build
+
+- Copy `keystore.properties.example` to `keystore.properties`.
+- Point `RELEASE_STORE_FILE` to your upload keystore.
+- Fill in the store password, key alias, and key password.
+- Build the Play bundle with `./gradlew bundleRelease`.

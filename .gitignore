@@ -9,3 +9,6 @@
 /home_view.xml
 /edit_view.xml
 /current_view.xml
+/keystore.properties
+*.jks
+*.keystore
