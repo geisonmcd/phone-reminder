@@ -1,0 +1,25 @@
+Phone Reminder helps you keep short, intentional reminders on your phone without turning them into a complicated task manager.
+
+Create reminders in seconds, choose how often they should appear, and keep the schedule inside the hours that work for you.
+
+Features:
+- Simple reminder list with fast editing
+- Per-reminder frequency controls
+- Up to 50 notifications per day for a single reminder
+- Default notification hours for the whole app
+- Case-insensitive reminder filtering
+- Plain-text export and import
+- Local storage on your device
+
+Phone Reminder is designed for repeated prompts like:
+- Focus cues
+- Habit reminders
+- Reflection prompts
+- Personal rules
+- Daily mindset checks
+
+Privacy:
+- No account required
+- No cloud sync
+- No analytics or ads
+- Reminder data stays on your device unless you export it yourself

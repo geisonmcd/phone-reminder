@@ -64,6 +64,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.geison.phonereminder.MainViewModel
+import com.geison.phonereminder.data.MAX_NOTIFICATIONS_PER_DAY
 import com.geison.phonereminder.data.NotificationWindowSettings
 import com.geison.phonereminder.data.ReminderItem
 
@@ -116,6 +117,7 @@ fun ReminderApp(
     var reminderFilter by rememberSaveable { mutableStateOf("") }
     var selectedReminderId by rememberSaveable { mutableStateOf<String?>(null) }
     var showingConfig by rememberSaveable { mutableStateOf(false) }
+    var showingPrivacyPolicy by rememberSaveable { mutableStateOf(false) }
     var configMessage by rememberSaveable { mutableStateOf<String?>(null) }
     var expandedReminderIds by rememberSaveable { mutableStateOf(emptyList<String>()) }
 
@@ -146,6 +148,7 @@ fun ReminderApp(
         }
         if (selectedReminderId != null) {
             showingConfig = false
+            showingPrivacyPolicy = false
         }
     }
     LaunchedEffect(state.reminders) {
@@ -227,6 +230,17 @@ fun ReminderApp(
                         onImport = {
                             importLauncher.launch(arrayOf("text/plain"))
                         },
+                        onPrivacyPolicy = {
+                            showingConfig = false
+                            showingPrivacyPolicy = true
+                        },
+                    )
+                } else if (showingPrivacyPolicy) {
+                    BackHandler {
+                        showingPrivacyPolicy = false
+                    }
+                    PrivacyPolicyScreen(
+                        onBack = { showingPrivacyPolicy = false },
                     )
                 } else {
                     HomeScreen(
@@ -334,7 +348,7 @@ private fun HomeScreen(
                             filteredReminders.forEachIndexed { index, reminder ->
                                 if (index > 0) {
                                     HorizontalDivider(
-                                        modifier = Modifier.padding(vertical = 14.dp),
+                                        modifier = Modifier.padding(vertical = 10.dp),
                                         color = MaterialTheme.colorScheme.outline.copy(alpha = 0.35f),
                                     )
                                 }
@@ -362,6 +376,7 @@ private fun ConfigScreen(
     onEndHourChange: (Int) -> Unit,
     onExport: () -> Unit,
     onImport: () -> Unit,
+    onPrivacyPolicy: () -> Unit,
 ) {
     AppScaffold {
         item {
@@ -435,6 +450,59 @@ private fun ConfigScreen(
                 buttonLabel = "Import from txt",
                 onClick = onImport,
             )
+        }
+
+        item {
+            ConfigActionCard(
+                title = "Privacy policy",
+                body = "Read how your reminder data is handled.",
+                buttonLabel = "Open privacy policy",
+                onClick = onPrivacyPolicy,
+            )
+        }
+    }
+}
+
+@Composable
+private fun PrivacyPolicyScreen(
+    onBack: () -> Unit,
+) {
+    AppScaffold {
+        item {
+            HeroCard(
+                title = "Privacy policy",
+                subtitle = "Local reminders only.",
+                onBack = onBack,
+            )
+        }
+
+        item {
+            AppCard(containerColor = PrimaryCardColor) {
+                PrivacySection(
+                    title = "What the app stores",
+                    body = "Phone Reminder stores reminders and schedule settings on your device."
+                )
+                CompactDivider()
+                PrivacySection(
+                    title = "Notifications",
+                    body = "The app uses notification and boot permissions so reminders can appear and reschedule after restart."
+                )
+                CompactDivider()
+                PrivacySection(
+                    title = "Data sharing",
+                    body = "The app does not send reminder content or personal data to our servers."
+                )
+                CompactDivider()
+                PrivacySection(
+                    title = "Backups",
+                    body = "Exports are saved only when you choose to create a text backup file."
+                )
+                CompactDivider()
+                PrivacySection(
+                    title = "Contact",
+                    body = "Publisher: Geison Macedo da Silva."
+                )
+            }
         }
     }
 }
@@ -575,7 +643,7 @@ private fun ReminderEditScreen(
                         notificationsPerWeek = snapWeeklyCount(notificationsPerWeek, updatedPerDay)
                     },
                     onIncrease = {
-                        val updatedPerDay = (notificationsPerDay + 1).coerceAtMost(5)
+                        val updatedPerDay = (notificationsPerDay + 1).coerceAtMost(MAX_NOTIFICATIONS_PER_DAY)
                         notificationsPerDay = updatedPerDay
                         notificationsPerWeek = snapWeeklyCount(notificationsPerWeek, updatedPerDay)
                     },
@@ -628,22 +696,22 @@ private fun AddReminderCard(
     onValueChange: (String) -> Unit,
     onAddReminder: () -> Unit,
 ) {
-    AppCard(containerColor = SecondaryCardColor) {
+    AppCard(containerColor = SecondaryCardColor, contentPadding = PaddingValues(14.dp)) {
         Text(
             text = "Add a reminder",
             style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.SemiBold,
         )
-        Spacer(modifier = Modifier.height(12.dp))
+        Spacer(modifier = Modifier.height(10.dp))
         OutlinedTextField(
             value = value,
             onValueChange = onValueChange,
             modifier = Modifier.fillMaxWidth(),
-            minLines = 3,
+            minLines = 2,
             label = { Text("Reminder text") },
             colors = appTextFieldColors(),
         )
-        Spacer(modifier = Modifier.height(12.dp))
+        Spacer(modifier = Modifier.height(10.dp))
         Button(
             onClick = onAddReminder,
             enabled = value.isNotBlank(),
@@ -700,13 +768,13 @@ private fun ReminderListCard(
     onFilterChange: (String) -> Unit,
     content: @Composable ColumnScope.() -> Unit,
 ) {
-    AppCard(containerColor = PrimaryCardColor) {
+    AppCard(containerColor = PrimaryCardColor, contentPadding = PaddingValues(14.dp)) {
         Text(
             text = reminderCountLabel(reminderCount, filteredCount, isFiltering),
             style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.SemiBold,
         )
-        Spacer(modifier = Modifier.height(12.dp))
+        Spacer(modifier = Modifier.height(8.dp))
         OutlinedTextField(
             value = reminderFilter,
             onValueChange = onFilterChange,
@@ -721,7 +789,7 @@ private fun ReminderListCard(
             },
             colors = appTextFieldColors(),
         )
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(12.dp))
         content()
     }
 }
@@ -762,9 +830,9 @@ private fun ReminderListItem(
                 }
             },
         )
-        Spacer(modifier = Modifier.height(12.dp))
-        InfoPill(text = scheduleSummary(reminder))
         Spacer(modifier = Modifier.height(8.dp))
+        InfoPill(text = scheduleSummary(reminder))
+        Spacer(modifier = Modifier.height(4.dp))
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.End,
@@ -806,6 +874,32 @@ private fun MessageCard(message: String) {
             color = MaterialTheme.colorScheme.onPrimaryContainer,
         )
     }
+}
+
+@Composable
+private fun PrivacySection(
+    title: String,
+    body: String,
+) {
+    Text(
+        text = title,
+        style = MaterialTheme.typography.titleSmall,
+        fontWeight = FontWeight.SemiBold,
+    )
+    Spacer(modifier = Modifier.height(4.dp))
+    Text(
+        text = body,
+        style = MaterialTheme.typography.bodyMedium,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+    )
+}
+
+@Composable
+private fun CompactDivider() {
+    HorizontalDivider(
+        modifier = Modifier.padding(vertical = 12.dp),
+        color = MaterialTheme.colorScheme.outline.copy(alpha = 0.35f),
+    )
 }
 
 @Composable
@@ -885,6 +979,7 @@ private fun AppScaffold(
 @Composable
 private fun AppCard(
     containerColor: Color,
+    contentPadding: PaddingValues = PaddingValues(18.dp),
     content: @Composable ColumnScope.() -> Unit,
 ) {
     Card(
@@ -896,7 +991,7 @@ private fun AppCard(
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
     ) {
         Column(
-            modifier = Modifier.padding(18.dp),
+            modifier = Modifier.padding(contentPadding),
             verticalArrangement = Arrangement.spacedBy(0.dp),
             content = content,
         )

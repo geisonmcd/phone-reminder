@@ -67,6 +67,35 @@ class NotificationSchedulerTest {
         assertEquals(3, plan.map { it.triggerAt.toLocalTime() }.distinct().size)
     }
 
+    @Test
+    fun createSchedulePlanSupportsFiftyNotificationsPerDay() {
+        val startDay = LocalDate.of(2026, 4, 13) // Monday
+        val state = AppState(
+            notificationWindow = NotificationWindowSettings(
+                startHour = 9,
+                endHour = 10,
+            ),
+            reminders = listOf(
+                ReminderItem(
+                    id = "intense",
+                    text = "Stay on task.",
+                    schedule = ScheduleSettings(
+                        notificationsPerWeek = 350,
+                        notificationsPerDay = 50,
+                    ),
+                ),
+            ),
+        )
+
+        val plan = NotificationScheduler.createSchedulePlan(
+            state = state,
+            startDay = startDay,
+            totalDays = 7,
+        )
+
+        assertEquals(350, plan.size)
+    }
+
     private fun reminder(id: String): ReminderItem {
         return ReminderItem(
             id = id,

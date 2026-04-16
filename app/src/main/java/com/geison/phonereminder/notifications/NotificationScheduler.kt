@@ -5,6 +5,8 @@ import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import com.geison.phonereminder.data.AppState
+import com.geison.phonereminder.data.MAX_NOTIFICATIONS_PER_DAY
+import com.geison.phonereminder.data.MAX_NOTIFICATIONS_PER_WEEK
 import com.geison.phonereminder.data.ReminderItem
 import com.geison.phonereminder.data.ReminderStorage
 import java.time.Duration
@@ -19,10 +21,8 @@ import kotlin.random.Random
 object NotificationScheduler {
     private const val REMINDER_REQUEST_CODE_BASE = 2_000
     private const val REFRESH_REQUEST_CODE = 9_000
-    private const val MAX_NOTIFICATIONS_PER_DAY = 5
-    private const val MAX_NOTIFICATIONS_PER_WEEK = MAX_NOTIFICATIONS_PER_DAY * 7
     private const val SCHEDULE_HORIZON_DAYS = 7
-    private const val MAX_SCHEDULED_ALARMS = 256
+    private const val MAX_SCHEDULED_ALARMS = 2_048
     private val notificationWindowMillis = Duration.ofMinutes(10).toMillis()
 
     fun scheduleToday(context: Context) {

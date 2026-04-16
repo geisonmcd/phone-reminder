@@ -2,6 +2,9 @@ package com.geison.phonereminder.data
 
 import kotlinx.serialization.Serializable
 
+const val MAX_NOTIFICATIONS_PER_DAY = 50
+const val MAX_NOTIFICATIONS_PER_WEEK = MAX_NOTIFICATIONS_PER_DAY * 7
+
 @Serializable
 data class ScheduleSettings(
     val notificationsPerWeek: Int = 3,

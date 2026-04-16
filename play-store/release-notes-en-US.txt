@@ -1,0 +1,7 @@
+Initial Play Store release of Phone Reminder.
+
+- Create and edit reminders quickly
+- Set reminder frequency up to 50 notifications per day
+- Filter reminders from the home screen
+- Export and import reminders as text
+- Keep reminder data stored locally on device

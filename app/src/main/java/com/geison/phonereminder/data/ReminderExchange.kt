@@ -105,7 +105,7 @@ object ReminderExchange {
                 cursor.readNumber(
                     prefix = notificationsPerDayLabel,
                     errorLabel = "Notifications per day",
-                ).coerceIn(1, 5)
+                ).coerceIn(1, MAX_NOTIFICATIONS_PER_DAY)
             } else {
                 1
             }

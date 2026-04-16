@@ -66,4 +66,26 @@ class ReminderExchangeTest {
             """.trimIndent(),
         )
     }
+
+    @Test
+    fun importSupportsUpToFiftyNotificationsPerDay() {
+        val imported = ReminderExchange.import(
+            """
+            Phone Reminder Export v1
+
+            Default start hour: 9
+            Default end hour: 20
+
+            ---
+            Reminder:
+            Deep work.
+            End reminder
+            Notifications per week: 350
+            Notifications per day: 50
+            """.trimIndent(),
+        )
+
+        assertEquals(50, imported.reminders.single().schedule.notificationsPerDay)
+        assertEquals(350, imported.reminders.single().schedule.notificationsPerWeek)
+    }
 }

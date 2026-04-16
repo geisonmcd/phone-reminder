@@ -5,6 +5,7 @@ import android.net.Uri
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
+import com.geison.phonereminder.data.MAX_NOTIFICATIONS_PER_DAY
 import com.geison.phonereminder.data.ReminderExchange
 import com.geison.phonereminder.data.ReminderItem
 import com.geison.phonereminder.data.ReminderRepository
@@ -49,7 +50,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             return
         }
 
-        val safeNotificationsPerDay = notificationsPerDay.coerceIn(1, 5)
+        val safeNotificationsPerDay = notificationsPerDay.coerceIn(1, MAX_NOTIFICATIONS_PER_DAY)
         val safeNotificationsPerWeek = snapWeeklyCount(
             value = notificationsPerWeek,
             notificationsPerDay = safeNotificationsPerDay,
