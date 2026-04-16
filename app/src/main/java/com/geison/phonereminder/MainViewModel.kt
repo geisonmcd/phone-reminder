@@ -11,10 +11,15 @@ import com.geison.phonereminder.data.ReminderRepository
 import com.geison.phonereminder.data.ScheduleSettings
 import com.geison.phonereminder.notifications.NotificationScheduler
 import com.geison.phonereminder.notifications.ReminderNotifier
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
 
 class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val repository = ReminderRepository(application)
+    private val mutableOpenReminderRequest = MutableStateFlow<String?>(null)
+
     val state = repository.state
+    val openReminderRequest = mutableOpenReminderRequest.asStateFlow()
 
     fun addReminder(text: String): String? {
         val reminderId = repository.addReminder(text)
@@ -37,38 +42,66 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         reminderId: String,
         text: String,
         notificationsPerWeek: Int,
-        startHour: Int,
-        endHour: Int,
+        notificationsPerDay: Int,
     ) {
         val trimmedText = text.trim()
         if (trimmedText.isEmpty()) {
             return
         }
 
-        val safeStartHour = startHour.coerceIn(0, 22)
-        val safeEndHour = endHour.coerceIn(safeStartHour + 1, 23)
+        val safeNotificationsPerDay = notificationsPerDay.coerceIn(1, 5)
+        val safeNotificationsPerWeek = snapWeeklyCount(
+            value = notificationsPerWeek,
+            notificationsPerDay = safeNotificationsPerDay,
+        )
+
         repository.updateReminder(reminderId) { current ->
             current.copy(
                 text = trimmedText,
                 schedule = ScheduleSettings(
-                    notificationsPerWeek = notificationsPerWeek.coerceIn(1, 7),
-                    startHour = safeStartHour,
-                    endHour = safeEndHour,
+                    notificationsPerWeek = safeNotificationsPerWeek,
+                    notificationsPerDay = safeNotificationsPerDay,
                 ),
             )
         }
         NotificationScheduler.scheduleToday(getApplication())
     }
 
-    fun testReminder(text: String) {
+    fun updateNotificationWindow(
+        startHour: Int,
+        endHour: Int,
+    ) {
+        val safeStartHour = startHour.coerceIn(0, 22)
+        val safeEndHour = endHour.coerceIn(safeStartHour + 1, 23)
+        repository.updateNotificationWindow(
+            startHour = safeStartHour,
+            endHour = safeEndHour,
+        )
+        NotificationScheduler.scheduleToday(getApplication())
+    }
+
+    fun testReminder(
+        reminderId: String,
+        text: String,
+    ) {
         if (text.isBlank()) {
             return
         }
+
         ReminderNotifier.showReminder(
             context = getApplication(),
             notificationId = (System.currentTimeMillis() % Int.MAX_VALUE).toInt(),
+            reminderId = reminderId,
             reminderText = text.trim(),
         )
+    }
+
+    fun requestOpenReminder(reminderId: String?) {
+        mutableOpenReminderRequest.value = reminderId
+    }
+
+    fun clearOpenReminderRequest() {
+        mutableOpenReminderRequest.value = null
     }
 
     fun rescheduleNow() {
@@ -102,11 +135,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 reader.readText()
             } ?: error("Could not open the selected file.")
 
-            val reminders = ReminderExchange.import(content)
-            repository.replaceReminders(reminders)
+            val importedState = ReminderExchange.import(content)
+            repository.replaceState(importedState)
             NotificationScheduler.scheduleToday(getApplication())
 
-            val count = reminders.size
+            val count = importedState.reminders.size
             if (count == 1) {
                 "Imported 1 reminder."
             } else {
@@ -114,6 +147,21 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             }
         }.getOrElse { error ->
             "Import failed: ${error.message ?: "Unknown error."}"
+        }
+    }
+
+    private fun snapWeeklyCount(
+        value: Int,
+        notificationsPerDay: Int,
+    ): Int {
+        val minValue = notificationsPerDay
+        val maxValue = notificationsPerDay * 7
+        val coerced = value.coerceIn(minValue, maxValue)
+        val remainder = coerced % notificationsPerDay
+        return if (remainder == 0) {
+            coerced
+        } else {
+            (coerced + notificationsPerDay - remainder).coerceAtMost(maxValue)
         }
     }
 

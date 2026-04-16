@@ -9,23 +9,25 @@ class ReminderExchangeTest {
     fun exportAndImportRoundTripPreservesReminderContent() {
         val exported = ReminderExchange.export(
             AppState(
+                notificationWindow = NotificationWindowSettings(
+                    startHour = 8,
+                    endHour = 19,
+                ),
                 reminders = listOf(
                     ReminderItem(
                         id = "first",
                         text = "Protect your attention.",
                         schedule = ScheduleSettings(
-                            notificationsPerWeek = 3,
-                            startHour = 9,
-                            endHour = 20,
+                            notificationsPerWeek = 4,
+                            notificationsPerDay = 1,
                         ),
                     ),
                     ReminderItem(
                         id = "second",
                         text = "Slow down before reacting.\nTake one breath first.",
                         schedule = ScheduleSettings(
-                            notificationsPerWeek = 1,
-                            startHour = 7,
-                            endHour = 11,
+                            notificationsPerWeek = 4,
+                            notificationsPerDay = 2,
                         ),
                     ),
                 ),
@@ -34,16 +36,16 @@ class ReminderExchangeTest {
 
         val imported = ReminderExchange.import(exported)
 
-        assertEquals(2, imported.size)
-        assertEquals("Protect your attention.", imported[0].text)
-        assertEquals(3, imported[0].schedule.notificationsPerWeek)
-        assertEquals(9, imported[0].schedule.startHour)
-        assertEquals(20, imported[0].schedule.endHour)
-        assertEquals("Slow down before reacting.\nTake one breath first.", imported[1].text)
-        assertEquals(1, imported[1].schedule.notificationsPerWeek)
-        assertEquals(7, imported[1].schedule.startHour)
-        assertEquals(11, imported[1].schedule.endHour)
-        assertTrue(imported.all { it.id.isNotBlank() })
+        assertEquals(2, imported.reminders.size)
+        assertEquals(8, imported.notificationWindow.startHour)
+        assertEquals(19, imported.notificationWindow.endHour)
+        assertEquals("Protect your attention.", imported.reminders[0].text)
+        assertEquals(4, imported.reminders[0].schedule.notificationsPerWeek)
+        assertEquals(1, imported.reminders[0].schedule.notificationsPerDay)
+        assertEquals("Slow down before reacting.\nTake one breath first.", imported.reminders[1].text)
+        assertEquals(4, imported.reminders[1].schedule.notificationsPerWeek)
+        assertEquals(2, imported.reminders[1].schedule.notificationsPerDay)
+        assertTrue(imported.reminders.all { it.id.isNotBlank() })
     }
 
     @Test(expected = IllegalArgumentException::class)
@@ -52,13 +54,15 @@ class ReminderExchangeTest {
             """
             Not a valid export
 
+            Default start hour: 9
+            Default end hour: 20
+
             ---
             Reminder:
             Protect your attention.
             End reminder
             Notifications per week: 3
-            Start hour: 9
-            End hour: 20
+            Notifications per day: 1
             """.trimIndent(),
         )
     }

@@ -5,6 +5,11 @@ import kotlinx.serialization.Serializable
 @Serializable
 data class ScheduleSettings(
     val notificationsPerWeek: Int = 3,
+    val notificationsPerDay: Int = 1,
+)
+
+@Serializable
+data class NotificationWindowSettings(
     val startHour: Int = 9,
     val endHour: Int = 20,
 )
@@ -19,4 +24,5 @@ data class ReminderItem(
 @Serializable
 data class AppState(
     val reminders: List<ReminderItem> = emptyList(),
+    val notificationWindow: NotificationWindowSettings = NotificationWindowSettings(),
 )

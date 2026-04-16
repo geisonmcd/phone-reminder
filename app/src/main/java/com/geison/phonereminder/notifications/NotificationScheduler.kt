@@ -19,7 +19,9 @@ import kotlin.random.Random
 object NotificationScheduler {
     private const val REMINDER_REQUEST_CODE_BASE = 2_000
     private const val REFRESH_REQUEST_CODE = 9_000
-    private const val MAX_NOTIFICATIONS_PER_REMINDER = 8
+    private const val MAX_NOTIFICATIONS_PER_DAY = 5
+    private const val MAX_NOTIFICATIONS_PER_WEEK = MAX_NOTIFICATIONS_PER_DAY * 7
+    private const val SCHEDULE_HORIZON_DAYS = 7
     private const val MAX_SCHEDULED_ALARMS = 256
     private val notificationWindowMillis = Duration.ofMinutes(10).toMillis()
 
@@ -32,9 +34,10 @@ object NotificationScheduler {
         cancelReminderAlarms(context, alarmManager)
         scheduleTomorrowRefresh(context, alarmManager)
 
-        val dayPlan = createDayPlan(
+        val dayPlan = createSchedulePlan(
             state = appState,
-            day = LocalDate.now(),
+            startDay = LocalDate.now(),
+            totalDays = SCHEDULE_HORIZON_DAYS,
         )
 
         val now = LocalDateTime.now()
@@ -42,6 +45,7 @@ object NotificationScheduler {
             .forEachIndexed { index, plan ->
                 val intent = Intent(context, NotificationReceiver::class.java)
                     .setAction(NotificationReceiver.ACTION_SHOW_REMINDER)
+                    .putExtra(NotificationReceiver.EXTRA_REMINDER_ID, plan.reminder.id)
                     .putExtra(NotificationReceiver.EXTRA_REMINDER_TEXT, plan.reminder.text)
                     .putExtra(NotificationReceiver.EXTRA_NOTIFICATION_ID, plan.notificationId)
 
@@ -98,11 +102,17 @@ object NotificationScheduler {
         )
     }
 
-    private fun createDayPlan(state: AppState, day: LocalDate): List<ScheduledReminder> {
-        val plans = state.reminders
-            .filter { it.text.isNotBlank() }
-            .flatMap { reminder -> createReminderPlan(reminder, day) }
+    internal fun createSchedulePlan(
+        state: AppState,
+        startDay: LocalDate,
+        totalDays: Int = SCHEDULE_HORIZON_DAYS,
+    ): List<ScheduledReminder> {
+        val plans = (0 until totalDays.coerceAtLeast(0))
+            .asSequence()
+            .map { offset -> startDay.plusDays(offset.toLong()) }
+            .flatMap { day -> createDayPlan(state, day).asSequence() }
             .sortedBy { it.triggerAt }
+            .toList()
 
         return plans.take(MAX_SCHEDULED_ALARMS)
             .mapIndexed { index, scheduledReminder ->
@@ -110,54 +120,98 @@ object NotificationScheduler {
             }
     }
 
-    private fun createReminderPlan(
-        reminder: ReminderItem,
+    private fun createDayPlan(
+        state: AppState,
         day: LocalDate,
     ): List<ScheduledReminder> {
+        val occurrences = state.reminders
+            .asSequence()
+            .filter { it.text.isNotBlank() }
+            .flatMap { reminder -> buildOccurrencesForDay(reminder, state, day).asSequence() }
+            .sortedWith(
+                compareBy<ReminderOccurrence> { it.endMinuteExclusive - it.startMinute }
+                    .thenBy { it.orderSeed },
+            )
+            .toList()
+
+        if (occurrences.isEmpty()) {
+            return emptyList()
+        }
+
+        val occupiedMinutes = mutableSetOf<Int>()
+        return occurrences.mapNotNull { occurrence ->
+            val candidateMinutes = (occurrence.startMinute until occurrence.endMinuteExclusive)
+                .filterNot(occupiedMinutes::contains)
+            if (candidateMinutes.isEmpty()) {
+                return@mapNotNull null
+            }
+
+            val minute = candidateMinutes.random(Random(occurrence.orderSeed))
+            occupiedMinutes += minute
+            ScheduledReminder(
+                notificationId = 0,
+                reminder = occurrence.reminder,
+                triggerAt = day.atStartOfDay().plusMinutes(minute.toLong()),
+            )
+        }
+    }
+
+    private fun buildOccurrencesForDay(
+        reminder: ReminderItem,
+        state: AppState,
+        day: LocalDate,
+    ): List<ReminderOccurrence> {
         val settings = reminder.schedule
-        val start = LocalDateTime.of(day, LocalTime.of(settings.startHour, 0))
-        val end = LocalDateTime.of(day, LocalTime.of(settings.endHour, 0))
+        val window = state.notificationWindow
+        val start = LocalDateTime.of(day, LocalTime.of(window.startHour, 0))
+        val end = LocalDateTime.of(day, LocalTime.of(window.endHour, 0))
         if (!start.isBefore(end)) {
             return emptyList()
         }
 
-        val startMinute = settings.startHour * 60
-        val endMinuteExclusive = settings.endHour * 60
-        val availableMinutes = (startMinute until endMinuteExclusive).toMutableList()
-        if (availableMinutes.isEmpty()) {
+        val startMinute = window.startHour * 60
+        val endMinuteExclusive = window.endHour * 60
+        if (startMinute >= endMinuteExclusive) {
             return emptyList()
         }
 
-        val notificationsPerWeek = settings.notificationsPerWeek.coerceIn(1, 7)
         val weekStart = day.with(TemporalAdjusters.previousOrSame(java.time.DayOfWeek.MONDAY))
         val dayIndex = (day.toEpochDay() - weekStart.toEpochDay()).toInt()
-        val scheduledDays = pickScheduledDays(weekStart, reminder, notificationsPerWeek)
-        if (dayIndex !in scheduledDays) {
-            return emptyList()
-        }
-
-        val minuteSeed = buildDaySeed(day, reminder)
-        availableMinutes.shuffle(Random(minuteSeed.toInt()))
-        val minuteOfDay = availableMinutes.first()
-
-        return listOf(
-            ScheduledReminder(
-                notificationId = 0,
-                reminder = reminder,
-                triggerAt = day.atStartOfDay().plusMinutes(minuteOfDay.toLong()),
-            ),
+        val notificationsPerDay = settings.notificationsPerDay.coerceIn(1, MAX_NOTIFICATIONS_PER_DAY)
+        val notificationsPerWeek = settings.notificationsPerWeek.coerceIn(
+            notificationsPerDay,
+            min(MAX_NOTIFICATIONS_PER_WEEK, notificationsPerDay * 7),
         )
+        val remindersToday = countScheduledOccurrencesForDay(
+            weekStart = weekStart,
+            reminder = reminder,
+            notificationsPerWeek = notificationsPerWeek,
+            notificationsPerDay = notificationsPerDay,
+            dayIndex = dayIndex,
+        )
+
+        return List(remindersToday) { occurrenceIndex ->
+            ReminderOccurrence(
+                reminder = reminder,
+                startMinute = startMinute,
+                endMinuteExclusive = endMinuteExclusive,
+                orderSeed = buildOccurrenceSeed(day, reminder, occurrenceIndex),
+            )
+        }
     }
 
-    private fun pickScheduledDays(
+    private fun countScheduledOccurrencesForDay(
         weekStart: LocalDate,
         reminder: ReminderItem,
         notificationsPerWeek: Int,
-    ): Set<Int> {
-        val days = (0..6).toMutableList()
+        notificationsPerDay: Int,
+        dayIndex: Int,
+    ): Int {
+        val activeDays = (notificationsPerWeek / notificationsPerDay).coerceIn(1, 7)
+        val slots = (0 until 7).toMutableList()
         val weekSeed = buildWeekSeed(weekStart, reminder)
-        days.shuffle(Random(weekSeed.toInt()))
-        return days.take(notificationsPerWeek).toSet()
+        slots.shuffle(Random(weekSeed.toInt()))
+        return if (dayIndex in slots.take(activeDays)) notificationsPerDay else 0
     }
 
     private fun buildWeekSeed(
@@ -176,6 +230,14 @@ object NotificationScheduler {
             day.dayOfWeek.value.toLong()
     }
 
+    private fun buildOccurrenceSeed(
+        day: LocalDate,
+        reminder: ReminderItem,
+        occurrenceIndex: Int,
+    ): Long {
+        return buildDaySeed(day, reminder) xor (occurrenceIndex.toLong() shl 16)
+    }
+
     private fun LocalDateTime.toEpochMillis(): Long {
         return atZone(ZoneId.systemDefault()).toInstant().toEpochMilli()
     }
@@ -185,4 +247,11 @@ data class ScheduledReminder(
     val notificationId: Int,
     val reminder: ReminderItem,
     val triggerAt: LocalDateTime,
+)
+
+private data class ReminderOccurrence(
+    val reminder: ReminderItem,
+    val startMinute: Int,
+    val endMinuteExclusive: Int,
+    val orderSeed: Long,
 )

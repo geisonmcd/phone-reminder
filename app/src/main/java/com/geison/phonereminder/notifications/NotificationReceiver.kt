@@ -19,10 +19,12 @@ class NotificationReceiver : BroadcastReceiver() {
 
         val reminderText = intent.getStringExtra(EXTRA_REMINDER_TEXT) ?: return
         val notificationId = intent.getIntExtra(EXTRA_NOTIFICATION_ID, 0)
+        val reminderId = intent.getStringExtra(EXTRA_REMINDER_ID) ?: return
 
         ReminderNotifier.showReminder(
             context = context,
             notificationId = notificationId,
+            reminderId = reminderId,
             reminderText = reminderText,
         )
     }
@@ -31,5 +33,6 @@ class NotificationReceiver : BroadcastReceiver() {
         const val ACTION_SHOW_REMINDER = "com.geison.phonereminder.action.SHOW_REMINDER"
         const val EXTRA_REMINDER_TEXT = "extra_reminder_text"
         const val EXTRA_NOTIFICATION_ID = "extra_notification_id"
+        const val EXTRA_REMINDER_ID = "extra_reminder_id"
     }
 }

@@ -7,9 +7,10 @@ object ReminderExchange {
     private const val separator = "---"
     private const val reminderStart = "Reminder:"
     private const val reminderEnd = "End reminder"
+    private const val defaultStartHourLabel = "Default start hour: "
+    private const val defaultEndHourLabel = "Default end hour: "
     private const val notificationsLabel = "Notifications per week: "
-    private const val startHourLabel = "Start hour: "
-    private const val endHourLabel = "End hour: "
+    private const val notificationsPerDayLabel = "Notifications per day: "
 
     fun export(state: AppState): String {
         val lines = mutableListOf(
@@ -17,6 +18,9 @@ object ReminderExchange {
             "",
             "This file can be imported back into Phone Reminder.",
             "Keep each block in the same format when editing by hand.",
+            "",
+            defaultStartHourLabel + state.notificationWindow.startHour,
+            defaultEndHourLabel + state.notificationWindow.endHour,
         )
 
         state.reminders.forEach { reminder ->
@@ -26,14 +30,13 @@ object ReminderExchange {
             lines += reminder.text.trimEnd()
             lines += reminderEnd
             lines += notificationsLabel + reminder.schedule.notificationsPerWeek
-            lines += startHourLabel + reminder.schedule.startHour
-            lines += endHourLabel + reminder.schedule.endHour
+            lines += notificationsPerDayLabel + reminder.schedule.notificationsPerDay
         }
 
         return lines.joinToString("\n") + "\n"
     }
 
-    fun import(rawText: String): List<ReminderItem> {
+    fun import(rawText: String): AppState {
         val normalized = rawText.replace("\r\n", "\n").replace('\r', '\n')
         val lines = normalized.lines()
         val cursor = LineCursor(lines)
@@ -43,8 +46,26 @@ object ReminderExchange {
             "This file is not a Phone Reminder export."
         }
 
+        var defaultStartHour: Int? = null
+        var defaultEndHour: Int? = null
         while (!cursor.isAtEnd && cursor.peekLine() != separator) {
-            cursor.readLine()
+            when {
+                cursor.peekLine()?.startsWith(defaultStartHourLabel) == true -> {
+                    defaultStartHour = cursor.readNumber(
+                        prefix = defaultStartHourLabel,
+                        errorLabel = "Default start hour",
+                    ).coerceIn(0, 22)
+                }
+
+                cursor.peekLine()?.startsWith(defaultEndHourLabel) == true -> {
+                    defaultEndHour = cursor.readNumber(
+                        prefix = defaultEndHourLabel,
+                        errorLabel = "Default end hour",
+                    ).coerceIn(1, 23)
+                }
+
+                else -> cursor.readLine()
+            }
         }
 
         val reminders = mutableListOf<ReminderItem>()
@@ -76,31 +97,68 @@ object ReminderExchange {
                 "Reminder text cannot be blank."
             }
 
-            val notificationsPerWeek = cursor.readNumber(
+            val rawNotificationsPerWeek = cursor.readNumber(
                 prefix = notificationsLabel,
                 errorLabel = "Notifications per week",
-            ).coerceIn(1, 7)
-            val startHour = cursor.readNumber(
-                prefix = startHourLabel,
-                errorLabel = "Start hour",
-            ).coerceIn(0, 22)
-            val endHour = cursor.readNumber(
-                prefix = endHourLabel,
-                errorLabel = "End hour",
-            ).coerceIn(startHour + 1, 23)
+            )
+            val notificationsPerDay = if (cursor.peekLine()?.startsWith(notificationsPerDayLabel) == true) {
+                cursor.readNumber(
+                    prefix = notificationsPerDayLabel,
+                    errorLabel = "Notifications per day",
+                ).coerceIn(1, 5)
+            } else {
+                1
+            }
+            val notificationsPerWeek = snapWeeklyCount(rawNotificationsPerWeek, notificationsPerDay)
+
+            if (cursor.peekLine()?.startsWith("Start hour: ") == true) {
+                defaultStartHour = defaultStartHour ?: cursor.readNumber(
+                    prefix = "Start hour: ",
+                    errorLabel = "Start hour",
+                ).coerceIn(0, 22)
+            }
+            if (cursor.peekLine()?.startsWith("End hour: ") == true) {
+                defaultEndHour = defaultEndHour ?: cursor.readNumber(
+                    prefix = "End hour: ",
+                    errorLabel = "End hour",
+                ).coerceIn(1, 23)
+            }
 
             reminders += ReminderItem(
                 id = UUID.randomUUID().toString(),
                 text = reminderText,
                 schedule = ScheduleSettings(
                     notificationsPerWeek = notificationsPerWeek,
-                    startHour = startHour,
-                    endHour = endHour,
+                    notificationsPerDay = notificationsPerDay,
                 ),
             )
         }
 
-        return reminders
+        val startHour = (defaultStartHour ?: 9).coerceIn(0, 22)
+        val endHour = (defaultEndHour ?: 20).coerceIn(startHour + 1, 23)
+
+        return AppState(
+            reminders = reminders,
+            notificationWindow = NotificationWindowSettings(
+                startHour = startHour,
+                endHour = endHour,
+            ),
+        )
+    }
+
+    private fun snapWeeklyCount(
+        value: Int,
+        notificationsPerDay: Int,
+    ): Int {
+        val minValue = notificationsPerDay
+        val maxValue = notificationsPerDay * 7
+        val coerced = value.coerceIn(minValue, maxValue)
+        val remainder = coerced % notificationsPerDay
+        return if (remainder == 0) {
+            coerced
+        } else {
+            (coerced + notificationsPerDay - remainder).coerceAtMost(maxValue)
+        }
     }
 
     private class LineCursor(private val lines: List<String>) {

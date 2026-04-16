@@ -61,6 +61,25 @@ class ReminderRepository(private val context: Context) {
         }
     }
 
+    fun replaceState(state: AppState) {
+        mutableState.value = state
+        ReminderStorage.save(context, state)
+    }
+
+    fun updateNotificationWindow(
+        startHour: Int,
+        endHour: Int,
+    ) {
+        updateState {
+            copy(
+                notificationWindow = NotificationWindowSettings(
+                    startHour = startHour,
+                    endHour = endHour,
+                ),
+            )
+        }
+    }
+
     private fun updateState(transform: AppState.() -> AppState) {
         val updated = mutableState.value.transform()
         mutableState.value = updated

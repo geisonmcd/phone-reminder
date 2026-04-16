@@ -12,6 +12,7 @@ object ReminderNotifier {
     fun showReminder(
         context: Context,
         notificationId: Int,
+        reminderId: String,
         reminderText: String,
     ) {
         NotificationChannels.ensureCreated(context)
@@ -20,7 +21,8 @@ object ReminderNotifier {
             context,
             notificationId,
             Intent(context, MainActivity::class.java).apply {
-                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
+                putExtra(MainActivity.EXTRA_OPEN_REMINDER_ID, reminderId)
             },
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
         )
