@@ -1,1 +1,1 @@
-Simple local reminders with custom notification frequency.
+Smart random reminder app with local nudges and custom frequency.

@@ -1,4 +1,4 @@
-Phone Reminder helps you keep short, intentional reminders on your phone without turning them into a complicated task manager.
+Smart Random Reminder helps you keep short, intentional reminders on your phone without turning them into a complicated task manager.
 
 Create reminders in seconds, choose how often they should appear, and keep the schedule inside the hours that work for you.
 
@@ -11,7 +11,7 @@ Features:
 - Plain-text export and import
 - Local storage on your device
 
-Phone Reminder is designed for repeated prompts like:
+Smart Random Reminder is designed for repeated prompts like:
 - Focus cues
 - Habit reminders
 - Reflection prompts

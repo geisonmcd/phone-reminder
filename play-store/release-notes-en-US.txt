@@ -1,4 +1,4 @@
-Initial Play Store release of Phone Reminder.
+Initial Play Store release of Smart Random Reminder.
 
 - Create and edit reminders quickly
 - Set reminder frequency up to 50 notifications per day

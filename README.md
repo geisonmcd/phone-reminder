@@ -1,4 +1,4 @@
-# Phone Reminder
+# Smart Random Reminder
 
 Simple Kotlin Android app for saving short life lessons and surfacing them as random local notifications during the day.
 

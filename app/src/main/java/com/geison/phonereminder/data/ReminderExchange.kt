@@ -3,7 +3,7 @@ package com.geison.phonereminder.data
 import java.util.UUID
 
 object ReminderExchange {
-    private const val header = "Phone Reminder Export v1"
+    private const val header = "Smart Random Reminder Export v1"
     private const val separator = "---"
     private const val reminderStart = "Reminder:"
     private const val reminderEnd = "End reminder"
@@ -16,7 +16,7 @@ object ReminderExchange {
         val lines = mutableListOf(
             header,
             "",
-            "This file can be imported back into Phone Reminder.",
+            "This file can be imported back into Smart Random Reminder.",
             "Keep each block in the same format when editing by hand.",
             "",
             defaultStartHourLabel + state.notificationWindow.startHour,
@@ -43,7 +43,7 @@ object ReminderExchange {
 
         cursor.skipBlanks()
         require(cursor.readLine() == header) {
-            "This file is not a Phone Reminder export."
+            "This file is not a Smart Random Reminder export."
         }
 
         var defaultStartHour: Int? = null

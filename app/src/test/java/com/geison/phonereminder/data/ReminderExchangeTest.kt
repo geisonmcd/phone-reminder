@@ -71,7 +71,7 @@ class ReminderExchangeTest {
     fun importSupportsUpToFiftyNotificationsPerDay() {
         val imported = ReminderExchange.import(
             """
-            Phone Reminder Export v1
+            Smart Random Reminder Export v1
 
             Default start hour: 9
             Default end hour: 20

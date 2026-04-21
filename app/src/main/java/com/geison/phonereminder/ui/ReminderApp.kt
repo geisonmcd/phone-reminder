@@ -299,7 +299,7 @@ private fun HomeScreen(
     AppScaffold {
         item {
             HeroCard(
-                title = "Phone Reminder",
+                title = "Smart Random Reminder",
                 action = {
                     HeroIconButton(
                         onClick = onConfig,
@@ -480,7 +480,7 @@ private fun PrivacyPolicyScreen(
             AppCard(containerColor = PrimaryCardColor) {
                 PrivacySection(
                     title = "What the app stores",
-                    body = "Phone Reminder stores reminders and schedule settings on your device."
+                    body = "Smart Random Reminder stores reminders and schedule settings on your device."
                 )
                 CompactDivider()
                 PrivacySection(
@@ -769,11 +769,18 @@ private fun ReminderListCard(
     content: @Composable ColumnScope.() -> Unit,
 ) {
     AppCard(containerColor = PrimaryCardColor, contentPadding = PaddingValues(14.dp)) {
-        Text(
-            text = reminderCountLabel(reminderCount, filteredCount, isFiltering),
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.SemiBold,
-        )
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                text = "Saved reminders",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold,
+            )
+            InfoPill(text = reminderCountLabel(reminderCount, filteredCount, isFiltering))
+        }
         Spacer(modifier = Modifier.height(8.dp))
         OutlinedTextField(
             value = reminderFilter,
@@ -789,6 +796,8 @@ private fun ReminderListCard(
             },
             colors = appTextFieldColors(),
         )
+        Spacer(modifier = Modifier.height(12.dp))
+        InfoPill(text = reminderCountLabel(reminderCount, filteredCount, isFiltering))
         Spacer(modifier = Modifier.height(12.dp))
         content()
     }
