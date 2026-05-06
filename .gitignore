@@ -10,6 +10,7 @@
 /home_view.xml
 /edit_view.xml
 /current_view.xml
+/.playwright-mcp
 /keystore.properties
 *.jks
 *.keystore

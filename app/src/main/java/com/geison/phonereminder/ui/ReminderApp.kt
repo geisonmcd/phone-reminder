@@ -9,8 +9,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -19,17 +19,14 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.DeleteOutline
-import androidx.compose.material.icons.outlined.Save
 import androidx.compose.material.icons.outlined.Search
-import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -57,8 +54,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -296,22 +291,12 @@ private fun HomeScreen(
         reminder.text.contains(reminderFilter.trim(), ignoreCase = true)
     }
 
-    AppScaffold {
+    AppScaffold(title = "Smart Random Reminder") {
         item {
-            HeroCard(
-                title = "Smart Random Reminder",
-                action = {
-                    HeroIconButton(
-                        onClick = onConfig,
-                        contentDescription = "Config",
-                    ) {
-                        Icon(
-                            imageVector = Icons.Outlined.Settings,
-                            contentDescription = null,
-                            tint = Color(0xFFF8F5ED),
-                        )
-                    }
-                },
+            ScreenIntroCard(
+                body = "Create reminders, keep the list organized, and open settings from one place.",
+                buttonLabel = "Open settings",
+                onButtonClick = onConfig,
             )
         }
 
@@ -378,12 +363,12 @@ private fun ConfigScreen(
     onImport: () -> Unit,
     onPrivacyPolicy: () -> Unit,
 ) {
-    AppScaffold {
+    AppScaffold(title = "Config") {
         item {
-            HeroCard(
-                title = "Config",
-                subtitle = "Settings and backup.",
-                onBack = onBack,
+            ScreenIntroCard(
+                body = "Adjust the default notification window and manage local backups.",
+                buttonLabel = "Back to reminders",
+                onButtonClick = onBack,
             )
         }
 
@@ -467,12 +452,12 @@ private fun ConfigScreen(
 private fun PrivacyPolicyScreen(
     onBack: () -> Unit,
 ) {
-    AppScaffold {
+    AppScaffold(title = "Privacy policy") {
         item {
-            HeroCard(
-                title = "Privacy policy",
-                subtitle = "Local reminders only.",
-                onBack = onBack,
+            ScreenIntroCard(
+                body = "This app keeps reminder data on your device unless you choose to export it.",
+                buttonLabel = "Back to config",
+                onButtonClick = onBack,
             )
         }
 
@@ -548,25 +533,12 @@ private fun ReminderEditScreen(
         )
     }
 
-    AppScaffold {
+    AppScaffold(title = "Edit reminder") {
         item {
-            HeroCard(
-                title = "Edit reminder",
-                subtitle = "Update reminder.",
-                onBack = onBack,
-                action = {
-                    HeroIconButton(
-                        onClick = { onSave(text, notificationsPerWeek, notificationsPerDay) },
-                        enabled = text.isNotBlank(),
-                        contentDescription = "Save reminder",
-                    ) {
-                        Icon(
-                            imageVector = Icons.Outlined.Save,
-                            contentDescription = null,
-                            tint = Color(0xFFF8F5ED),
-                        )
-                    }
-                },
+            ScreenIntroCard(
+                body = "Update the reminder text, tune the schedule, then save when you're done.",
+                buttonLabel = "Back without saving",
+                onButtonClick = onBack,
             )
         }
 
@@ -665,6 +637,13 @@ private fun ReminderEditScreen(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Button(
+                        onClick = { onSave(text, notificationsPerWeek, notificationsPerDay) },
+                        enabled = text.isNotBlank(),
+                        modifier = Modifier.weight(1f),
+                    ) {
+                        Text("Save reminder")
+                    }
+                    Button(
                         onClick = { onTestNotification(reminder.id, text) },
                         enabled = text.isNotBlank(),
                         modifier = Modifier.weight(1f),
@@ -686,6 +665,31 @@ private fun ReminderEditScreen(
                     }
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun ScreenIntroCard(
+    body: String,
+    buttonLabel: String,
+    onButtonClick: () -> Unit,
+) {
+    AppCard(containerColor = SecondaryCardColor) {
+        Text(
+            text = body,
+            style = MaterialTheme.typography.bodyLarge,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Spacer(modifier = Modifier.height(12.dp))
+        Button(
+            onClick = onButtonClick,
+            colors = ButtonDefaults.buttonColors(
+                containerColor = MaterialTheme.colorScheme.primary,
+                contentColor = MaterialTheme.colorScheme.onPrimary,
+            ),
+        ) {
+            Text(buttonLabel)
         }
     }
 }
@@ -969,10 +973,14 @@ private fun SmallActionButton(
 
 @Composable
 private fun AppScaffold(
+    title: String,
     content: LazyListScope.() -> Unit,
 ) {
     Scaffold(
         containerColor = Color.Transparent,
+        topBar = {
+            FixedMenuBar(title = title)
+        },
     ) { padding ->
         LazyColumn(
             modifier = Modifier
@@ -1008,90 +1016,30 @@ private fun AppCard(
 }
 
 @Composable
-private fun HeroCard(
+private fun FixedMenuBar(
     title: String,
-    subtitle: String? = null,
-    onBack: (() -> Unit)? = null,
-    action: (@Composable () -> Unit)? = null,
-    footer: @Composable ColumnScope.() -> Unit = {},
 ) {
-    Card(
-        shape = AppCardShape,
-        colors = CardDefaults.cardColors(containerColor = Color.Transparent),
-        border = BorderStroke(1.dp, Color(0x332F6FED)),
+    Surface(
+        color = Color.Transparent,
+        shadowElevation = 10.dp,
     ) {
-        Column(
+        Box(
             modifier = Modifier
+                .fillMaxWidth()
                 .background(
                     Brush.linearGradient(
                         colors = listOf(HeroCardTop, HeroCardBottom),
                     ),
                 )
-                .padding(22.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp),
+                .statusBarsPadding()
+                .padding(horizontal = 20.dp, vertical = 18.dp),
         ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                if (onBack != null) {
-                    HeroIconButton(
-                        onClick = onBack,
-                        contentDescription = "Back",
-                    ) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Outlined.ArrowBack,
-                            contentDescription = null,
-                            tint = Color(0xFFF8F5ED),
-                        )
-                    }
-                }
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = title,
-                        style = MaterialTheme.typography.headlineMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = Color.White,
-                    )
-                    if (!subtitle.isNullOrBlank()) {
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Text(
-                            text = subtitle,
-                            style = MaterialTheme.typography.bodyLarge,
-                            color = Color(0xFFDCE7FF),
-                        )
-                    }
-                }
-                action?.invoke()
-            }
-            footer()
-        }
-    }
-}
-
-@Composable
-private fun HeroIconButton(
-    onClick: () -> Unit,
-    contentDescription: String,
-    enabled: Boolean = true,
-    content: @Composable () -> Unit,
-) {
-    IconButton(
-        onClick = onClick,
-        enabled = enabled,
-        modifier = Modifier.semantics {
-            this.contentDescription = contentDescription
-        },
-    ) {
-        Box(
-            modifier = Modifier
-                .size(40.dp)
-                .clip(AppPillShape)
-                .background(Color.White.copy(alpha = if (enabled) 0.14f else 0.08f)),
-            contentAlignment = Alignment.Center,
-        ) {
-            content()
+            Text(
+                text = title,
+                style = MaterialTheme.typography.headlineSmall,
+                fontWeight = FontWeight.Bold,
+                color = Color.White,
+            )
         }
     }
 }
