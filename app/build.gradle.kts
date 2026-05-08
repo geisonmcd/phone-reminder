@@ -18,6 +18,19 @@ fun signingValue(name: String): String? {
         ?: System.getenv(name)?.takeIf { it.isNotBlank() }
 }
 
+fun releaseVersionCode(): Int {
+    return System.getenv("VERSION_CODE")
+        ?.takeIf { it.isNotBlank() }
+        ?.toIntOrNull()
+        ?: 1
+}
+
+fun releaseVersionName(): String {
+    return System.getenv("VERSION_NAME")
+        ?.takeIf { it.isNotBlank() }
+        ?: "1.0.0"
+}
+
 android {
     namespace = "com.geison.phonereminder"
     compileSdk = 35
@@ -26,8 +39,8 @@ android {
         applicationId = "com.geison.smartrandomreminder"
         minSdk = 26
         targetSdk = 35
-        versionCode = 1
-        versionName = "1.0.0"
+        versionCode = releaseVersionCode()
+        versionName = releaseVersionName()
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {

@@ -29,3 +29,25 @@ Simple Kotlin Android app for saving short life lessons and surfacing them as ra
 - Point `RELEASE_STORE_FILE` to your upload keystore.
 - Fill in the store password, key alias, and key password.
 - Build the Play bundle with `./gradlew bundleRelease`.
+
+## GitHub Actions release
+
+The repository has two workflows:
+
+- `Android CI`: runs unit tests on pushes to `main` and pull requests.
+- `Android Release Bundle`: manually builds a signed Play Store `.aab` and uploads it as a GitHub Actions artifact. Each run asks for `versionCode` and `versionName`; `versionCode` must be higher than every previous Play upload.
+
+Configure these repository secrets before running the release workflow:
+
+- `RELEASE_KEYSTORE_BASE64`: base64-encoded upload keystore file.
+- `RELEASE_STORE_PASSWORD`: upload keystore password.
+- `RELEASE_KEY_ALIAS`: upload key alias.
+- `RELEASE_KEY_PASSWORD`: upload key password.
+
+To generate the keystore secret locally:
+
+```sh
+base64 -i path/to/upload-keystore.jks | pbcopy
+```
+
+Then open GitHub Actions, run `Android Release Bundle`, enter the next `versionCode`, download the `smart-random-reminder-release-aab` artifact, and upload the `.aab` in Play Console.

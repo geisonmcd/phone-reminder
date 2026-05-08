@@ -17,6 +17,17 @@ Expected bundle:
 app/build/outputs/bundle/release/app-release.aab
 ```
 
+Alternatively, run the `Android Release Bundle` workflow in GitHub Actions. It asks for `versionCode` and `versionName`, runs tests, builds a signed `.aab`, and stores it as the `smart-random-reminder-release-aab` artifact for 14 days.
+
+Use a `versionCode` higher than every previous upload in Play Console. For example, if the latest uploaded bundle is `1`, the next release should use `2`.
+
+The workflow requires these GitHub repository secrets:
+
+- `RELEASE_KEYSTORE_BASE64`
+- `RELEASE_STORE_PASSWORD`
+- `RELEASE_KEY_ALIAS`
+- `RELEASE_KEY_PASSWORD`
+
 ## 2. Store Listing
 
 Open the default store listing and fill:
