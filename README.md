@@ -35,7 +35,7 @@ Simple Kotlin Android app for saving short life lessons and surfacing them as ra
 The repository has two workflows:
 
 - `Android CI`: runs unit tests on pushes to `main` and pull requests.
-- `Android Release Bundle`: manually builds a signed Play Store `.aab` and uploads it as a GitHub Actions artifact. Each run asks for `versionCode` and `versionName`; `versionCode` must be higher than every previous Play upload.
+- `Android Closed Testing Release`: manually builds a signed Play Store `.aab`, keeps the `.aab` as a GitHub Actions artifact, and uploads it to the Play Console closed testing track. Each run asks for `versionCode` and `versionName`; `versionCode` must be higher than every previous Play upload.
 
 Configure these repository secrets before running the release workflow:
 
@@ -43,6 +43,9 @@ Configure these repository secrets before running the release workflow:
 - `RELEASE_STORE_PASSWORD`: upload keystore password.
 - `RELEASE_KEY_ALIAS`: upload key alias.
 - `RELEASE_KEY_PASSWORD`: upload key password.
+- `PLAY_SERVICE_ACCOUNT_JSON`: Google Play Developer API service account JSON with permission to manage releases for this app.
+
+See `play-store/google-play-api-setup.md` for the one-time Play Console service account setup.
 
 To generate the keystore secret locally:
 
@@ -50,4 +53,4 @@ To generate the keystore secret locally:
 base64 -i path/to/upload-keystore.jks | pbcopy
 ```
 
-Then open GitHub Actions, run `Android Release Bundle`, enter the next `versionCode`, download the `smart-random-reminder-release-aab` artifact, and upload the `.aab` in Play Console.
+Then open GitHub Actions, run `Android Closed Testing Release`, and enter the next `versionCode`. The workflow uploads the build to the Play Console closed testing `alpha` track; promote that release manually when it is ready.

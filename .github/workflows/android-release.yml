@@ -1,4 +1,4 @@
-name: Android Release Bundle
+name: Android Closed Testing Release
 
 on:
   workflow_dispatch:
@@ -17,12 +17,12 @@ permissions:
   contents: read
 
 concurrency:
-  group: android-release-bundle
+  group: android-closed-testing-release
   cancel-in-progress: false
 
 jobs:
   bundle:
-    name: Build signed AAB
+    name: Build and upload to closed testing
     runs-on: ubuntu-latest
 
     steps:
@@ -35,6 +35,11 @@ jobs:
           distribution: temurin
           java-version: "17"
           cache: gradle
+
+      - name: Check Play service account secret
+        run: test -n "$PLAY_SERVICE_ACCOUNT_JSON"
+        env:
+          PLAY_SERVICE_ACCOUNT_JSON: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
 
       - name: Decode upload keystore
         run: |
@@ -60,3 +65,14 @@ jobs:
           path: app/build/outputs/bundle/release/app-release.aab
           if-no-files-found: error
           retention-days: 14
+
+      - name: Upload to Play closed testing
+        uses: r0adkll/upload-google-play@v1
+        with:
+          serviceAccountJsonPlainText: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
+          packageName: com.geison.smartrandomreminder
+          releaseFiles: app/build/outputs/bundle/release/app-release.aab
+          track: alpha
+          status: completed
+          releaseName: ${{ inputs.versionName }} (${{ inputs.versionCode }})
+          whatsNewDirectory: play-store/whatsnew

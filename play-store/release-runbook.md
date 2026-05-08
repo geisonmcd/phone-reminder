@@ -17,7 +17,7 @@ Expected bundle:
 app/build/outputs/bundle/release/app-release.aab
 ```
 
-Alternatively, run the `Android Release Bundle` workflow in GitHub Actions. It asks for `versionCode` and `versionName`, runs tests, builds a signed `.aab`, and stores it as the `smart-random-reminder-release-aab` artifact for 14 days.
+Alternatively, run the `Android Closed Testing Release` workflow in GitHub Actions. It asks for `versionCode` and `versionName`, runs tests, builds a signed `.aab`, stores it as the `smart-random-reminder-release-aab` artifact for 14 days, and uploads it to the Play Console closed testing `alpha` track.
 
 Use a `versionCode` higher than every previous upload in Play Console. For example, if the latest uploaded bundle is `1`, the next release should use `2`.
 
@@ -27,6 +27,9 @@ The workflow requires these GitHub repository secrets:
 - `RELEASE_STORE_PASSWORD`
 - `RELEASE_KEY_ALIAS`
 - `RELEASE_KEY_PASSWORD`
+- `PLAY_SERVICE_ACCOUNT_JSON`
+
+See `play-store/google-play-api-setup.md` if `PLAY_SERVICE_ACCOUNT_JSON` has not been configured yet.
 
 ## 2. Store Listing
 
@@ -58,7 +61,9 @@ Complete or verify these Play Console declarations:
 
 ## 4. Closed Testing Track
 
-In `Test and release > Testing > Closed testing > Alpha`:
+The GitHub Actions workflow can create the release in `Test and release > Testing > Closed testing > Alpha` automatically.
+
+For a manual fallback:
 
 1. Select countries/regions.
 2. Select testers.
