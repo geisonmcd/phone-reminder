@@ -106,11 +106,12 @@ object NotificationScheduler {
         state: AppState,
         startDay: LocalDate,
         totalDays: Int = SCHEDULE_HORIZON_DAYS,
+        random: Random = Random.Default,
     ): List<ScheduledReminder> {
         val plans = (0 until totalDays.coerceAtLeast(0))
             .asSequence()
             .map { offset -> startDay.plusDays(offset.toLong()) }
-            .flatMap { day -> createDayPlan(state, day).asSequence() }
+            .flatMap { day -> createDayPlan(state, day, random).asSequence() }
             .sortedBy { it.triggerAt }
             .toList()
 
@@ -123,31 +124,29 @@ object NotificationScheduler {
     private fun createDayPlan(
         state: AppState,
         day: LocalDate,
+        random: Random,
     ): List<ScheduledReminder> {
         val occurrences = state.reminders
             .asSequence()
             .filter { it.text.isNotBlank() }
             .flatMap { reminder -> buildOccurrencesForDay(reminder, state, day).asSequence() }
-            .sortedWith(
-                compareBy<ReminderOccurrence> { it.endMinuteExclusive - it.startMinute }
-                    .thenBy { it.orderSeed },
-            )
+            .shuffled(random)
             .toList()
 
         if (occurrences.isEmpty()) {
             return emptyList()
         }
 
-        val occupiedMinutes = mutableSetOf<Int>()
+        val scheduledMinutes = mutableListOf<Int>()
         return occurrences.mapNotNull { occurrence ->
             val candidateMinutes = (occurrence.startMinute until occurrence.endMinuteExclusive)
-                .filterNot(occupiedMinutes::contains)
+                .filterNot(scheduledMinutes::contains)
             if (candidateMinutes.isEmpty()) {
                 return@mapNotNull null
             }
 
-            val minute = candidateMinutes.random(Random(occurrence.orderSeed))
-            occupiedMinutes += minute
+            val minute = candidateMinutes.random(random)
+            scheduledMinutes += minute
             ScheduledReminder(
                 notificationId = 0,
                 reminder = occurrence.reminder,
@@ -190,12 +189,11 @@ object NotificationScheduler {
             dayIndex = dayIndex,
         )
 
-        return List(remindersToday) { occurrenceIndex ->
+        return List(remindersToday) {
             ReminderOccurrence(
                 reminder = reminder,
                 startMinute = startMinute,
                 endMinuteExclusive = endMinuteExclusive,
-                orderSeed = buildOccurrenceSeed(day, reminder, occurrenceIndex),
             )
         }
     }
@@ -222,22 +220,6 @@ object NotificationScheduler {
         return weekStart.toEpochDay() xor reminderHash.toLong()
     }
 
-    private fun buildDaySeed(
-        day: LocalDate,
-        reminder: ReminderItem,
-    ): Long {
-        return buildWeekSeed(day.with(TemporalAdjusters.previousOrSame(java.time.DayOfWeek.MONDAY)), reminder) xor
-            day.dayOfWeek.value.toLong()
-    }
-
-    private fun buildOccurrenceSeed(
-        day: LocalDate,
-        reminder: ReminderItem,
-        occurrenceIndex: Int,
-    ): Long {
-        return buildDaySeed(day, reminder) xor (occurrenceIndex.toLong() shl 16)
-    }
-
     private fun LocalDateTime.toEpochMillis(): Long {
         return atZone(ZoneId.systemDefault()).toInstant().toEpochMilli()
     }
@@ -253,5 +235,4 @@ private data class ReminderOccurrence(
     val reminder: ReminderItem,
     val startMinute: Int,
     val endMinuteExclusive: Int,
-    val orderSeed: Long,
 )

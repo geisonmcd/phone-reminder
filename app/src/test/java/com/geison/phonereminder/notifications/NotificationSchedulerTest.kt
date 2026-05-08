@@ -7,6 +7,7 @@ import com.geison.phonereminder.data.ScheduleSettings
 import org.junit.Assert.assertEquals
 import org.junit.Test
 import java.time.LocalDate
+import kotlin.random.Random
 
 class NotificationSchedulerTest {
     @Test
@@ -65,6 +66,34 @@ class NotificationSchedulerTest {
 
         assertEquals(3, plan.size)
         assertEquals(3, plan.map { it.triggerAt.toLocalTime() }.distinct().size)
+    }
+
+    @Test
+    fun createSchedulePlanAssignsRandomTimesInsideNotificationWindow() {
+        val startDay = LocalDate.of(2026, 4, 13) // Monday
+        val state = AppState(
+            notificationWindow = NotificationWindowSettings(
+                startHour = 9,
+                endHour = 21,
+            ),
+            reminders = (1..6).map { index -> reminder("reminder-$index") },
+        )
+
+        val plan = NotificationScheduler.createSchedulePlan(
+            state = state,
+            startDay = startDay,
+            totalDays = 1,
+            random = Random(1),
+        )
+
+        assertEquals(6, plan.size)
+        val scheduledMinutes = plan
+            .map { it.triggerAt.hour * 60 + it.triggerAt.minute }
+            .sorted()
+        assertEquals(6, scheduledMinutes.distinct().size)
+        scheduledMinutes.forEach { minute ->
+            assert(minute in (9 * 60) until (21 * 60))
+        }
     }
 
     @Test
