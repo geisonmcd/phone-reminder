@@ -88,4 +88,32 @@ class ReminderExchangeTest {
         assertEquals(50, imported.reminders.single().schedule.notificationsPerDay)
         assertEquals(350, imported.reminders.single().schedule.notificationsPerWeek)
     }
+
+    @Test
+    fun importSupportsLegacyPhoneReminderHeader() {
+        val imported = ReminderExchange.import(
+            """
+            Phone Reminder Export v1
+
+            This file can be imported back into Phone Reminder.
+            Keep each block in the same format when editing by hand.
+
+            Default start hour: 7
+            Default end hour: 22
+
+            ---
+            Reminder:
+            Remain in me and I'll remain in you
+            End reminder
+            Notifications per week: 1
+            Notifications per day: 1
+            """.trimIndent(),
+        )
+
+        assertEquals(7, imported.notificationWindow.startHour)
+        assertEquals(22, imported.notificationWindow.endHour)
+        assertEquals("Remain in me and I'll remain in you", imported.reminders.single().text)
+        assertEquals(1, imported.reminders.single().schedule.notificationsPerWeek)
+        assertEquals(1, imported.reminders.single().schedule.notificationsPerDay)
+    }
 }

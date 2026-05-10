@@ -4,6 +4,7 @@ import java.util.UUID
 
 object ReminderExchange {
     private const val header = "Smart Random Reminder Export v1"
+    private const val legacyHeader = "Phone Reminder Export v1"
     private const val separator = "---"
     private const val reminderStart = "Reminder:"
     private const val reminderEnd = "End reminder"
@@ -42,7 +43,7 @@ object ReminderExchange {
         val cursor = LineCursor(lines)
 
         cursor.skipBlanks()
-        require(cursor.readLine() == header) {
+        require(cursor.readLine() in setOf(header, legacyHeader)) {
             "This file is not a Smart Random Reminder export."
         }
 
