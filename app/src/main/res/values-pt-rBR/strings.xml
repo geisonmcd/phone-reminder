@@ -1,0 +1,92 @@
+<resources>
+    <string name="app_name">Smart Random Reminder</string>
+    <string name="notification_title_reminder">Lembrete</string>
+    <string name="notification_channel_reminders">Lembretes</string>
+    <string name="notification_channel_reminders_description">Notificações de lembretes agendadas durante o dia.</string>
+
+    <string name="message_export_canceled">Exportação cancelada.</string>
+    <string name="message_import_canceled">Importação cancelada.</string>
+    <string name="message_file_open_failed">Não foi possível abrir o arquivo selecionado.</string>
+    <string name="message_export_failed">Falha ao exportar: %1$s</string>
+    <string name="message_import_failed">Falha ao importar: %1$s</string>
+    <string name="message_unknown_error">Erro desconhecido.</string>
+    <plurals name="message_exported_reminders">
+        <item quantity="one">1 lembrete exportado.</item>
+        <item quantity="other">%1$d lembretes exportados.</item>
+    </plurals>
+    <plurals name="message_imported_reminders">
+        <item quantity="one">1 lembrete importado.</item>
+        <item quantity="other">%1$d lembretes importados.</item>
+    </plurals>
+
+    <string name="file_name_export">phone-reminder-export.txt</string>
+    <string name="screen_title_home">Smart Random Reminder</string>
+    <string name="screen_title_config">Configurações</string>
+    <string name="screen_title_privacy_policy">Política de privacidade</string>
+    <string name="screen_title_new_reminder">Novo lembrete</string>
+    <string name="screen_title_edit_reminder">Editar lembrete</string>
+
+    <string name="action_open_settings">Abrir configurações</string>
+    <string name="action_add_reminder">Adicionar lembrete</string>
+    <string name="action_back_to_reminders">Voltar para lembretes</string>
+    <string name="action_back_to_config">Voltar para configurações</string>
+    <string name="action_back_without_saving">Voltar sem salvar</string>
+    <string name="action_save_reminder">Salvar lembrete</string>
+    <string name="action_delete_reminder">Excluir lembrete</string>
+    <string name="action_delete">Excluir</string>
+    <string name="action_cancel">Cancelar</string>
+    <string name="action_test_notification">Testar notificação</string>
+    <string name="action_export_txt">Exportar para txt</string>
+    <string name="action_import_txt">Importar de txt</string>
+    <string name="action_open_privacy_policy">Abrir política de privacidade</string>
+
+    <string name="empty_no_reminders_title">Nenhum lembrete ainda</string>
+    <string name="empty_no_reminders_body">Crie seu primeiro lembrete.</string>
+    <string name="empty_no_matches_title">Nenhum resultado</string>
+    <string name="empty_no_matches_body">Tente outro filtro.</string>
+
+    <string name="config_intro">Ajuste o horário padrão das notificações e gerencie backups locais.</string>
+    <string name="config_default_hours_title">Horários padrão de notificação</string>
+    <string name="config_default_hours_body">Aplicado a todos os lembretes.</string>
+    <string name="label_start_hour">Hora inicial</string>
+    <string name="label_end_hour">Hora final</string>
+    <string name="config_export_title">Exportar lembretes</string>
+    <string name="config_export_body">Salve em um arquivo de texto.</string>
+    <string name="config_import_title">Importar lembretes</string>
+    <string name="config_import_body">Substitua a lista a partir de um arquivo de texto.</string>
+    <string name="config_privacy_title">Política de privacidade</string>
+    <string name="config_privacy_body">Leia como seus dados de lembretes são tratados.</string>
+
+    <string name="privacy_intro">Este app mantém os dados dos lembretes no seu dispositivo, a menos que você escolha exportá-los.</string>
+    <string name="privacy_stores_title">O que o app armazena</string>
+    <string name="privacy_stores_body">O Smart Random Reminder armazena lembretes e configurações de agenda no seu dispositivo.</string>
+    <string name="privacy_notifications_title">Notificações</string>
+    <string name="privacy_notifications_body">O app usa permissões de notificação e inicialização para que os lembretes apareçam e sejam reagendados após reiniciar.</string>
+    <string name="privacy_sharing_title">Compartilhamento de dados</string>
+    <string name="privacy_sharing_body">O app não envia conteúdo dos lembretes nem dados pessoais para nossos servidores.</string>
+    <string name="privacy_backups_title">Backups</string>
+    <string name="privacy_backups_body">As exportações são salvas apenas quando você escolhe criar um backup em arquivo de texto.</string>
+    <string name="privacy_contact_title">Contato</string>
+    <string name="privacy_contact_body">Publicador: Geison Macedo da Silva.</string>
+
+    <string name="dialog_delete_title">Excluir lembrete?</string>
+    <string name="dialog_delete_body">Este lembrete será removido permanentemente.</string>
+    <string name="label_reminder_text">Texto do lembrete</string>
+    <string name="label_reminder">Lembrete</string>
+    <string name="example_reminder">Exemplo: Proteja sua atenção.</string>
+    <string name="notification_length_count">%1$d/%2$d caracteres antes do aviso de tamanho da notificação</string>
+    <string name="notification_length_body">Textos longos podem ser cortados.</string>
+    <string name="info_title">Informações</string>
+    <string name="created_at">Criado em %1$s</string>
+    <string name="schedule_title">Agenda</string>
+    <string name="schedule_body">Totais semanais mudam conforme a quantidade diária.</string>
+    <string name="label_notifications_per_week">Notificações por semana</string>
+    <string name="label_notifications_per_day">Notificações por dia</string>
+    <string name="actions_title">Ações</string>
+    <string name="saved_reminders_title">Lembretes salvos</string>
+    <string name="filter_reminders_label">Filtrar lembretes</string>
+    <string name="schedule_summary">%1$d/semana, %2$d/dia</string>
+    <string name="reminder_count_one">1 lembrete</string>
+    <string name="reminder_count_many">%1$d lembretes</string>
+    <string name="reminder_count_filtered">%1$d/%2$d exibidos</string>
+</resources>

@@ -5,6 +5,7 @@ import android.net.Uri
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
+import com.geison.phonereminder.R
 import com.geison.phonereminder.data.MAX_NOTIFICATIONS_PER_DAY
 import com.geison.phonereminder.data.ReminderExchange
 import com.geison.phonereminder.data.ReminderItem
@@ -144,18 +145,21 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         return runCatching {
             getApplication<Application>().contentResolver.openOutputStream(uri)?.bufferedWriter()?.use { writer ->
                 writer.write(content)
-            } ?: error("Could not open the selected file.")
+            } ?: error(getApplication<Application>().getString(R.string.message_file_open_failed))
         }.fold(
             onSuccess = {
                 val count = state.value.reminders.size
-                if (count == 1) {
-                    "Exported 1 reminder."
-                } else {
-                    "Exported $count reminders."
-                }
+                getApplication<Application>().resources.getQuantityString(
+                    R.plurals.message_exported_reminders,
+                    count,
+                    count,
+                )
             },
             onFailure = { error ->
-                "Export failed: ${error.message ?: "Unknown error."}"
+                getApplication<Application>().getString(
+                    R.string.message_export_failed,
+                    error.message ?: getApplication<Application>().getString(R.string.message_unknown_error),
+                )
             },
         )
     }
@@ -164,20 +168,23 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         return runCatching {
             val content = getApplication<Application>().contentResolver.openInputStream(uri)?.bufferedReader()?.use { reader ->
                 reader.readText()
-            } ?: error("Could not open the selected file.")
+            } ?: error(getApplication<Application>().getString(R.string.message_file_open_failed))
 
             val importedState = ReminderExchange.import(content)
             repository.replaceState(importedState)
             NotificationScheduler.scheduleToday(getApplication())
 
             val count = importedState.reminders.size
-            if (count == 1) {
-                "Imported 1 reminder."
-            } else {
-                "Imported $count reminders."
-            }
+            getApplication<Application>().resources.getQuantityString(
+                R.plurals.message_imported_reminders,
+                count,
+                count,
+            )
         }.getOrElse { error ->
-            "Import failed: ${error.message ?: "Unknown error."}"
+            getApplication<Application>().getString(
+                R.string.message_import_failed,
+                error.message ?: getApplication<Application>().getString(R.string.message_unknown_error),
+            )
         }
     }
 

@@ -58,11 +58,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.compose.ui.platform.LocalContext
 import com.geison.phonereminder.MainViewModel
+import com.geison.phonereminder.R
 import com.geison.phonereminder.data.MAX_NOTIFICATIONS_PER_DAY
 import com.geison.phonereminder.data.NotificationWindowSettings
 import com.geison.phonereminder.data.ReminderItem
@@ -122,12 +125,13 @@ fun ReminderApp(
     var showingConfig by rememberSaveable { mutableStateOf(false) }
     var showingPrivacyPolicy by rememberSaveable { mutableStateOf(false) }
     var configMessage by rememberSaveable { mutableStateOf<String?>(null) }
+    val context = LocalContext.current
 
     val exportLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.CreateDocument("text/plain"),
     ) { uri ->
         configMessage = if (uri == null) {
-            "Export canceled."
+            context.getString(R.string.message_export_canceled)
         } else {
             viewModel.exportReminders(uri)
         }
@@ -137,7 +141,7 @@ fun ReminderApp(
         contract = ActivityResultContracts.OpenDocument(),
     ) { uri ->
         configMessage = if (uri == null) {
-            "Import canceled."
+            context.getString(R.string.message_import_canceled)
         } else {
             viewModel.importReminders(uri)
         }
@@ -249,7 +253,7 @@ fun ReminderApp(
                             )
                         },
                         onExport = {
-                            exportLauncher.launch("phone-reminder-export.txt")
+                            exportLauncher.launch(context.getString(R.string.file_name_export))
                         },
                         onImport = {
                             importLauncher.launch(arrayOf("text/plain"))
@@ -303,12 +307,12 @@ private fun HomeScreen(
     }
 
     AppScaffold(
-        title = "Smart Random Reminder",
+        title = stringResource(R.string.screen_title_home),
         topBarAction = {
             IconButton(onClick = onConfig) {
                 Icon(
                     imageVector = Icons.Outlined.Settings,
-                    contentDescription = "Open settings",
+                    contentDescription = stringResource(R.string.action_open_settings),
                     tint = Color.White,
                 )
             }
@@ -321,7 +325,7 @@ private fun HomeScreen(
             ) {
                 Icon(
                     imageVector = Icons.Outlined.Add,
-                    contentDescription = "Add reminder",
+                    contentDescription = stringResource(R.string.action_add_reminder),
                 )
             }
         },
@@ -337,14 +341,14 @@ private fun HomeScreen(
                     when {
                         reminders.isEmpty() -> {
                             ReminderListEmptyState(
-                                title = "No reminders yet",
-                                body = "Create your first reminder.",
+                                title = stringResource(R.string.empty_no_reminders_title),
+                                body = stringResource(R.string.empty_no_reminders_body),
                             )
                         }
                         filteredReminders.isEmpty() -> {
                             ReminderListEmptyState(
-                                title = "No matches",
-                                body = "Try a different filter.",
+                                title = stringResource(R.string.empty_no_matches_title),
+                                body = stringResource(R.string.empty_no_matches_body),
                             )
                         }
                         else -> {
@@ -381,12 +385,12 @@ private fun ConfigScreen(
     onPrivacyPolicy: () -> Unit,
 ) {
     AppScaffold(
-        title = "Config",
+        title = stringResource(R.string.screen_title_config),
         navigationAction = {
             IconButton(onClick = onBack) {
                 Icon(
                     imageVector = Icons.AutoMirrored.Outlined.ArrowBack,
-                    contentDescription = "Back to reminders",
+                    contentDescription = stringResource(R.string.action_back_to_reminders),
                     tint = Color.White,
                 )
             }
@@ -394,8 +398,8 @@ private fun ConfigScreen(
     ) {
         item {
             ScreenIntroCard(
-                body = "Adjust the default notification window and manage local backups.",
-                buttonLabel = "Back to reminders",
+                body = stringResource(R.string.config_intro),
+                buttonLabel = stringResource(R.string.action_back_to_reminders),
                 onButtonClick = onBack,
             )
         }
@@ -409,19 +413,19 @@ private fun ConfigScreen(
         item {
             AppCard(containerColor = SecondaryCardColor) {
                 Text(
-                    text = "Default notification hours",
+                    text = stringResource(R.string.config_default_hours_title),
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.SemiBold,
                 )
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
-                    text = "Applies to all reminders.",
+                    text = stringResource(R.string.config_default_hours_body),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 Spacer(modifier = Modifier.height(12.dp))
                 StepperRow(
-                    label = "Start hour",
+                    label = stringResource(R.string.label_start_hour),
                     value = hourLabel(notificationWindow.startHour),
                     onDecrease = {
                         onStartHourChange((notificationWindow.startHour - 1).coerceIn(0, notificationWindow.endHour - 1))
@@ -435,7 +439,7 @@ private fun ConfigScreen(
                     color = MaterialTheme.colorScheme.outline.copy(alpha = 0.35f),
                 )
                 StepperRow(
-                    label = "End hour",
+                    label = stringResource(R.string.label_end_hour),
                     value = hourLabel(notificationWindow.endHour),
                     onDecrease = {
                         onEndHourChange((notificationWindow.endHour - 1).coerceIn(notificationWindow.startHour + 1, 23))
@@ -449,27 +453,27 @@ private fun ConfigScreen(
 
         item {
             ConfigActionCard(
-                title = "Export reminders",
-                body = "Save to a text file.",
-                buttonLabel = "Export to txt",
+                title = stringResource(R.string.config_export_title),
+                body = stringResource(R.string.config_export_body),
+                buttonLabel = stringResource(R.string.action_export_txt),
                 onClick = onExport,
             )
         }
 
         item {
             ConfigActionCard(
-                title = "Import reminders",
-                body = "Replace the list from a text file.",
-                buttonLabel = "Import from txt",
+                title = stringResource(R.string.config_import_title),
+                body = stringResource(R.string.config_import_body),
+                buttonLabel = stringResource(R.string.action_import_txt),
                 onClick = onImport,
             )
         }
 
         item {
             ConfigActionCard(
-                title = "Privacy policy",
-                body = "Read how your reminder data is handled.",
-                buttonLabel = "Open privacy policy",
+                title = stringResource(R.string.config_privacy_title),
+                body = stringResource(R.string.config_privacy_body),
+                buttonLabel = stringResource(R.string.action_open_privacy_policy),
                 onClick = onPrivacyPolicy,
             )
         }
@@ -481,12 +485,12 @@ private fun PrivacyPolicyScreen(
     onBack: () -> Unit,
 ) {
     AppScaffold(
-        title = "Privacy policy",
+        title = stringResource(R.string.screen_title_privacy_policy),
         navigationAction = {
             IconButton(onClick = onBack) {
                 Icon(
                     imageVector = Icons.AutoMirrored.Outlined.ArrowBack,
-                    contentDescription = "Back to config",
+                    contentDescription = stringResource(R.string.action_back_to_config),
                     tint = Color.White,
                 )
             }
@@ -494,8 +498,8 @@ private fun PrivacyPolicyScreen(
     ) {
         item {
             ScreenIntroCard(
-                body = "This app keeps reminder data on your device unless you choose to export it.",
-                buttonLabel = "Back to config",
+                body = stringResource(R.string.privacy_intro),
+                buttonLabel = stringResource(R.string.action_back_to_config),
                 onButtonClick = onBack,
             )
         }
@@ -503,28 +507,28 @@ private fun PrivacyPolicyScreen(
         item {
             AppCard(containerColor = PrimaryCardColor) {
                 PrivacySection(
-                    title = "What the app stores",
-                    body = "Smart Random Reminder stores reminders and schedule settings on your device."
+                    title = stringResource(R.string.privacy_stores_title),
+                    body = stringResource(R.string.privacy_stores_body),
                 )
                 CompactDivider()
                 PrivacySection(
-                    title = "Notifications",
-                    body = "The app uses notification and boot permissions so reminders can appear and reschedule after restart."
+                    title = stringResource(R.string.privacy_notifications_title),
+                    body = stringResource(R.string.privacy_notifications_body),
                 )
                 CompactDivider()
                 PrivacySection(
-                    title = "Data sharing",
-                    body = "The app does not send reminder content or personal data to our servers."
+                    title = stringResource(R.string.privacy_sharing_title),
+                    body = stringResource(R.string.privacy_sharing_body),
                 )
                 CompactDivider()
                 PrivacySection(
-                    title = "Backups",
-                    body = "Exports are saved only when you choose to create a text backup file."
+                    title = stringResource(R.string.privacy_backups_title),
+                    body = stringResource(R.string.privacy_backups_body),
                 )
                 CompactDivider()
                 PrivacySection(
-                    title = "Contact",
-                    body = "Publisher: Geison Macedo da Silva."
+                    title = stringResource(R.string.privacy_contact_title),
+                    body = stringResource(R.string.privacy_contact_body),
                 )
             }
         }
@@ -553,8 +557,8 @@ private fun ReminderEditScreen(
     if (showDeleteConfirmation) {
         AlertDialog(
             onDismissRequest = { showDeleteConfirmation = false },
-            title = { Text("Delete reminder?") },
-            text = { Text("This reminder will be removed permanently.") },
+            title = { Text(stringResource(R.string.dialog_delete_title)) },
+            text = { Text(stringResource(R.string.dialog_delete_body)) },
             confirmButton = {
                 TextButton(
                     onClick = {
@@ -562,24 +566,28 @@ private fun ReminderEditScreen(
                         onDelete()
                     },
                 ) {
-                    Text("Delete")
+                    Text(stringResource(R.string.action_delete))
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showDeleteConfirmation = false }) {
-                    Text("Cancel")
+                    Text(stringResource(R.string.action_cancel))
                 }
             },
         )
     }
 
     AppScaffold(
-        title = if (isNewReminder) "New reminder" else "Edit reminder",
+        title = if (isNewReminder) {
+            stringResource(R.string.screen_title_new_reminder)
+        } else {
+            stringResource(R.string.screen_title_edit_reminder)
+        },
         navigationAction = {
             IconButton(onClick = onBack) {
                 Icon(
                     imageVector = Icons.AutoMirrored.Outlined.ArrowBack,
-                    contentDescription = "Back without saving",
+                    contentDescription = stringResource(R.string.action_back_without_saving),
                     tint = Color.White,
                 )
             }
@@ -600,7 +608,7 @@ private fun ReminderEditScreen(
             ) {
                 Icon(
                     imageVector = Icons.Outlined.Save,
-                    contentDescription = "Save reminder",
+                    contentDescription = stringResource(R.string.action_save_reminder),
                 )
             }
         },
@@ -608,7 +616,7 @@ private fun ReminderEditScreen(
         item {
             AppCard(containerColor = PrimaryCardColor) {
                 Text(
-                    text = "Reminder text",
+                    text = stringResource(R.string.label_reminder_text),
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.SemiBold,
                 )
@@ -618,13 +626,17 @@ private fun ReminderEditScreen(
                     onValueChange = { text = it },
                     modifier = Modifier.fillMaxWidth(),
                     minLines = 4,
-                    label = { Text("Reminder") },
+                    label = { Text(stringResource(R.string.label_reminder)) },
                     colors = appTextFieldColors(),
                     supportingText = {
                         Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                            Text("Example: Protect your attention.")
+                            Text(stringResource(R.string.example_reminder))
                             Text(
-                                text = "${text.length}/$NOTIFICATION_TEXT_WARNING_LIMIT characters before notification-length warning",
+                                text = stringResource(
+                                    R.string.notification_length_count,
+                                    text.length,
+                                    NOTIFICATION_TEXT_WARNING_LIMIT,
+                                ),
                                 color = if (isNotificationLengthWarning) {
                                     MaterialTheme.colorScheme.error
                                 } else {
@@ -632,7 +644,7 @@ private fun ReminderEditScreen(
                                 },
                             )
                             Text(
-                                text = "Long text may be cut off.",
+                                text = stringResource(R.string.notification_length_body),
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
                         }
@@ -644,13 +656,16 @@ private fun ReminderEditScreen(
         item {
             AppCard(containerColor = PrimaryCardColor) {
                 Text(
-                    text = "Info",
+                    text = stringResource(R.string.info_title),
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.SemiBold,
                 )
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
-                    text = "Created ${formatCreatedAt(reminder.createdAtEpochMillis)}",
+                    text = stringResource(
+                        R.string.created_at,
+                        formatCreatedAt(reminder.createdAtEpochMillis),
+                    ),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -660,19 +675,19 @@ private fun ReminderEditScreen(
         item {
             AppCard(containerColor = SecondaryCardColor) {
                 Text(
-                    text = "Schedule",
+                    text = stringResource(R.string.schedule_title),
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.SemiBold,
                 )
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
-                    text = "Weekly totals move in daily steps.",
+                    text = stringResource(R.string.schedule_body),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 Spacer(modifier = Modifier.height(12.dp))
                 StepperRow(
-                    label = "Notifications per week",
+                    label = stringResource(R.string.label_notifications_per_week),
                     value = notificationsPerWeek.toString(),
                     onDecrease = {
                         notificationsPerWeek = (notificationsPerWeek - notificationsPerDay).coerceAtLeast(notificationsPerDay)
@@ -686,7 +701,7 @@ private fun ReminderEditScreen(
                     color = MaterialTheme.colorScheme.outline.copy(alpha = 0.35f),
                 )
                 StepperRow(
-                    label = "Notifications per day",
+                    label = stringResource(R.string.label_notifications_per_day),
                     value = notificationsPerDay.toString(),
                     onDecrease = {
                         val updatedPerDay = (notificationsPerDay - 1).coerceAtLeast(1)
@@ -706,7 +721,7 @@ private fun ReminderEditScreen(
             item {
                 AppCard(containerColor = PrimaryCardColor) {
                     Text(
-                        text = "Actions",
+                        text = stringResource(R.string.actions_title),
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.SemiBold,
                     )
@@ -725,14 +740,14 @@ private fun ReminderEditScreen(
                                 contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
                             ),
                         ) {
-                            Text("Test notification")
+                            Text(stringResource(R.string.action_test_notification))
                         }
                         IconButton(
                             onClick = { showDeleteConfirmation = true },
                         ) {
                             Icon(
                                 imageVector = Icons.Outlined.DeleteOutline,
-                                contentDescription = "Delete reminder",
+                                contentDescription = stringResource(R.string.action_delete_reminder),
                                 tint = MaterialTheme.colorScheme.error,
                             )
                         }
@@ -817,7 +832,7 @@ private fun ReminderListCard(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(
-                text = "Saved reminders",
+                text = stringResource(R.string.saved_reminders_title),
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.SemiBold,
             )
@@ -829,7 +844,7 @@ private fun ReminderListCard(
             onValueChange = onFilterChange,
             modifier = Modifier.fillMaxWidth(),
             singleLine = true,
-            label = { Text("Filter reminders") },
+            label = { Text(stringResource(R.string.filter_reminders_label)) },
             leadingIcon = {
                 Icon(
                     imageVector = Icons.Outlined.Search,
@@ -1131,21 +1146,27 @@ private fun formatCreatedAt(epochMillis: Long): String {
     return formatter.format(Date(epochMillis))
 }
 
+@Composable
 private fun scheduleSummary(reminder: ReminderItem): String {
-    return "${reminder.schedule.notificationsPerWeek}/week, ${reminder.schedule.notificationsPerDay}/day"
+    return stringResource(
+        R.string.schedule_summary,
+        reminder.schedule.notificationsPerWeek,
+        reminder.schedule.notificationsPerDay,
+    )
 }
 
+@Composable
 private fun reminderCountLabel(
     totalCount: Int,
     filteredCount: Int,
     isFiltering: Boolean,
 ): String {
     return if (isFiltering) {
-        "$filteredCount/$totalCount shown"
+        stringResource(R.string.reminder_count_filtered, filteredCount, totalCount)
     } else if (totalCount == 1) {
-        "1 reminder"
+        stringResource(R.string.reminder_count_one)
     } else {
-        "$totalCount reminders"
+        stringResource(R.string.reminder_count_many, totalCount)
     }
 }
 

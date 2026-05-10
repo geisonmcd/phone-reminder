@@ -29,7 +29,7 @@ object ReminderNotifier {
 
         val notification = NotificationCompat.Builder(context, NotificationChannels.REMINDER_CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_notification)
-            .setContentTitle("Reminder")
+            .setContentTitle(context.getString(R.string.notification_title_reminder))
             .setContentText(reminderText)
             .setStyle(NotificationCompat.BigTextStyle().bigText(reminderText))
             .setContentIntent(openAppIntent)

@@ -1,3 +1,92 @@
 <resources>
     <string name="app_name">Smart Random Reminder</string>
+    <string name="notification_title_reminder">Reminder</string>
+    <string name="notification_channel_reminders">Reminders</string>
+    <string name="notification_channel_reminders_description">Reminder notifications scheduled during the day.</string>
+
+    <string name="message_export_canceled">Export canceled.</string>
+    <string name="message_import_canceled">Import canceled.</string>
+    <string name="message_file_open_failed">Could not open the selected file.</string>
+    <string name="message_export_failed">Export failed: %1$s</string>
+    <string name="message_import_failed">Import failed: %1$s</string>
+    <string name="message_unknown_error">Unknown error.</string>
+    <plurals name="message_exported_reminders">
+        <item quantity="one">Exported 1 reminder.</item>
+        <item quantity="other">Exported %1$d reminders.</item>
+    </plurals>
+    <plurals name="message_imported_reminders">
+        <item quantity="one">Imported 1 reminder.</item>
+        <item quantity="other">Imported %1$d reminders.</item>
+    </plurals>
+
+    <string name="file_name_export">phone-reminder-export.txt</string>
+    <string name="screen_title_home">Smart Random Reminder</string>
+    <string name="screen_title_config">Config</string>
+    <string name="screen_title_privacy_policy">Privacy policy</string>
+    <string name="screen_title_new_reminder">New reminder</string>
+    <string name="screen_title_edit_reminder">Edit reminder</string>
+
+    <string name="action_open_settings">Open settings</string>
+    <string name="action_add_reminder">Add reminder</string>
+    <string name="action_back_to_reminders">Back to reminders</string>
+    <string name="action_back_to_config">Back to config</string>
+    <string name="action_back_without_saving">Back without saving</string>
+    <string name="action_save_reminder">Save reminder</string>
+    <string name="action_delete_reminder">Delete reminder</string>
+    <string name="action_delete">Delete</string>
+    <string name="action_cancel">Cancel</string>
+    <string name="action_test_notification">Test notification</string>
+    <string name="action_export_txt">Export to txt</string>
+    <string name="action_import_txt">Import from txt</string>
+    <string name="action_open_privacy_policy">Open privacy policy</string>
+
+    <string name="empty_no_reminders_title">No reminders yet</string>
+    <string name="empty_no_reminders_body">Create your first reminder.</string>
+    <string name="empty_no_matches_title">No matches</string>
+    <string name="empty_no_matches_body">Try a different filter.</string>
+
+    <string name="config_intro">Adjust the default notification window and manage local backups.</string>
+    <string name="config_default_hours_title">Default notification hours</string>
+    <string name="config_default_hours_body">Applies to all reminders.</string>
+    <string name="label_start_hour">Start hour</string>
+    <string name="label_end_hour">End hour</string>
+    <string name="config_export_title">Export reminders</string>
+    <string name="config_export_body">Save to a text file.</string>
+    <string name="config_import_title">Import reminders</string>
+    <string name="config_import_body">Replace the list from a text file.</string>
+    <string name="config_privacy_title">Privacy policy</string>
+    <string name="config_privacy_body">Read how your reminder data is handled.</string>
+
+    <string name="privacy_intro">This app keeps reminder data on your device unless you choose to export it.</string>
+    <string name="privacy_stores_title">What the app stores</string>
+    <string name="privacy_stores_body">Smart Random Reminder stores reminders and schedule settings on your device.</string>
+    <string name="privacy_notifications_title">Notifications</string>
+    <string name="privacy_notifications_body">The app uses notification and boot permissions so reminders can appear and reschedule after restart.</string>
+    <string name="privacy_sharing_title">Data sharing</string>
+    <string name="privacy_sharing_body">The app does not send reminder content or personal data to our servers.</string>
+    <string name="privacy_backups_title">Backups</string>
+    <string name="privacy_backups_body">Exports are saved only when you choose to create a text backup file.</string>
+    <string name="privacy_contact_title">Contact</string>
+    <string name="privacy_contact_body">Publisher: Geison Macedo da Silva.</string>
+
+    <string name="dialog_delete_title">Delete reminder?</string>
+    <string name="dialog_delete_body">This reminder will be removed permanently.</string>
+    <string name="label_reminder_text">Reminder text</string>
+    <string name="label_reminder">Reminder</string>
+    <string name="example_reminder">Example: Protect your attention.</string>
+    <string name="notification_length_count">%1$d/%2$d characters before notification-length warning</string>
+    <string name="notification_length_body">Long text may be cut off.</string>
+    <string name="info_title">Info</string>
+    <string name="created_at">Created %1$s</string>
+    <string name="schedule_title">Schedule</string>
+    <string name="schedule_body">Weekly totals move in daily steps.</string>
+    <string name="label_notifications_per_week">Notifications per week</string>
+    <string name="label_notifications_per_day">Notifications per day</string>
+    <string name="actions_title">Actions</string>
+    <string name="saved_reminders_title">Saved reminders</string>
+    <string name="filter_reminders_label">Filter reminders</string>
+    <string name="schedule_summary">%1$d/week, %2$d/day</string>
+    <string name="reminder_count_one">1 reminder</string>
+    <string name="reminder_count_many">%1$d reminders</string>
+    <string name="reminder_count_filtered">%1$d/%2$d shown</string>
 </resources>
