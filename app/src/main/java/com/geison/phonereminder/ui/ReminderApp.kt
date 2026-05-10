@@ -25,13 +25,17 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.ArrowBack
+import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.DeleteOutline
 import androidx.compose.material.icons.outlined.Search
+import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -290,24 +294,44 @@ private fun HomeScreen(
     val filteredReminders = reminders.filter { reminder ->
         reminder.text.contains(reminderFilter.trim(), ignoreCase = true)
     }
+    var showAddReminderDialog by rememberSaveable { mutableStateOf(false) }
 
-    AppScaffold(title = "Smart Random Reminder") {
-        item {
-            ScreenIntroCard(
-                body = "Create reminders, keep the list organized, and open settings from one place.",
-                buttonLabel = "Open settings",
-                onButtonClick = onConfig,
-            )
-        }
+    if (showAddReminderDialog) {
+        AddReminderDialog(
+            value = draftReminder,
+            onValueChange = onDraftChange,
+            onDismiss = { showAddReminderDialog = false },
+            onAddReminder = {
+                onAddReminder()
+                showAddReminderDialog = false
+            },
+        )
+    }
 
-        item {
-            AddReminderCard(
-                value = draftReminder,
-                onValueChange = onDraftChange,
-                onAddReminder = onAddReminder,
-            )
-        }
-
+    AppScaffold(
+        title = "Smart Random Reminder",
+        topBarAction = {
+            IconButton(onClick = onConfig) {
+                Icon(
+                    imageVector = Icons.Outlined.Settings,
+                    contentDescription = "Open settings",
+                    tint = Color.White,
+                )
+            }
+        },
+        floatingActionButton = {
+            FloatingActionButton(
+                onClick = { showAddReminderDialog = true },
+                containerColor = MaterialTheme.colorScheme.primary,
+                contentColor = MaterialTheme.colorScheme.onPrimary,
+            ) {
+                Icon(
+                    imageVector = Icons.Outlined.Add,
+                    contentDescription = "Add reminder",
+                )
+            }
+        },
+    ) {
         item {
             ReminderListCard(
                 reminderCount = reminderCount,
@@ -363,7 +387,18 @@ private fun ConfigScreen(
     onImport: () -> Unit,
     onPrivacyPolicy: () -> Unit,
 ) {
-    AppScaffold(title = "Config") {
+    AppScaffold(
+        title = "Config",
+        navigationAction = {
+            IconButton(onClick = onBack) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Outlined.ArrowBack,
+                    contentDescription = "Back to reminders",
+                    tint = Color.White,
+                )
+            }
+        },
+    ) {
         item {
             ScreenIntroCard(
                 body = "Adjust the default notification window and manage local backups.",
@@ -452,7 +487,18 @@ private fun ConfigScreen(
 private fun PrivacyPolicyScreen(
     onBack: () -> Unit,
 ) {
-    AppScaffold(title = "Privacy policy") {
+    AppScaffold(
+        title = "Privacy policy",
+        navigationAction = {
+            IconButton(onClick = onBack) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Outlined.ArrowBack,
+                    contentDescription = "Back to config",
+                    tint = Color.White,
+                )
+            }
+        },
+    ) {
         item {
             ScreenIntroCard(
                 body = "This app keeps reminder data on your device unless you choose to export it.",
@@ -533,7 +579,18 @@ private fun ReminderEditScreen(
         )
     }
 
-    AppScaffold(title = "Edit reminder") {
+    AppScaffold(
+        title = "Edit reminder",
+        navigationAction = {
+            IconButton(onClick = onBack) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Outlined.ArrowBack,
+                    contentDescription = "Back without saving",
+                    tint = Color.White,
+                )
+            }
+        },
+    ) {
         item {
             ScreenIntroCard(
                 body = "Update the reminder text, tune the schedule, then save when you're done.",
@@ -695,39 +752,39 @@ private fun ScreenIntroCard(
 }
 
 @Composable
-private fun AddReminderCard(
+private fun AddReminderDialog(
     value: String,
     onValueChange: (String) -> Unit,
+    onDismiss: () -> Unit,
     onAddReminder: () -> Unit,
 ) {
-    AppCard(containerColor = SecondaryCardColor, contentPadding = PaddingValues(14.dp)) {
-        Text(
-            text = "Add a reminder",
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.SemiBold,
-        )
-        Spacer(modifier = Modifier.height(10.dp))
-        OutlinedTextField(
-            value = value,
-            onValueChange = onValueChange,
-            modifier = Modifier.fillMaxWidth(),
-            minLines = 2,
-            label = { Text("Reminder text") },
-            colors = appTextFieldColors(),
-        )
-        Spacer(modifier = Modifier.height(10.dp))
-        Button(
-            onClick = onAddReminder,
-            enabled = value.isNotBlank(),
-            modifier = Modifier.fillMaxWidth(),
-            colors = ButtonDefaults.buttonColors(
-                containerColor = MaterialTheme.colorScheme.primary,
-                contentColor = MaterialTheme.colorScheme.onPrimary,
-            ),
-        ) {
-            Text("Create reminder")
-        }
-    }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Add a reminder") },
+        text = {
+            OutlinedTextField(
+                value = value,
+                onValueChange = onValueChange,
+                modifier = Modifier.fillMaxWidth(),
+                minLines = 3,
+                label = { Text("Reminder text") },
+                colors = appTextFieldColors(),
+            )
+        },
+        confirmButton = {
+            TextButton(
+                onClick = onAddReminder,
+                enabled = value.isNotBlank(),
+            ) {
+                Text("Create")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel")
+            }
+        },
+    )
 }
 
 @Composable
@@ -974,19 +1031,32 @@ private fun SmallActionButton(
 @Composable
 private fun AppScaffold(
     title: String,
+    navigationAction: (@Composable () -> Unit)? = null,
+    topBarAction: (@Composable () -> Unit)? = null,
+    floatingActionButton: @Composable () -> Unit = {},
     content: LazyListScope.() -> Unit,
 ) {
     Scaffold(
         containerColor = Color.Transparent,
         topBar = {
-            FixedMenuBar(title = title)
+            FixedMenuBar(
+                title = title,
+                navigationAction = navigationAction,
+                action = topBarAction,
+            )
         },
+        floatingActionButton = floatingActionButton,
     ) { padding ->
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding),
-            contentPadding = PaddingValues(horizontal = 18.dp, vertical = 20.dp),
+            contentPadding = PaddingValues(
+                start = 18.dp,
+                top = 20.dp,
+                end = 18.dp,
+                bottom = 96.dp,
+            ),
             verticalArrangement = Arrangement.spacedBy(14.dp),
             content = content,
         )
@@ -1018,6 +1088,8 @@ private fun AppCard(
 @Composable
 private fun FixedMenuBar(
     title: String,
+    navigationAction: (@Composable () -> Unit)? = null,
+    action: (@Composable () -> Unit)? = null,
 ) {
     Surface(
         color = Color.Transparent,
@@ -1034,12 +1106,30 @@ private fun FixedMenuBar(
                 .statusBarsPadding()
                 .padding(horizontal = 20.dp, vertical = 18.dp),
         ) {
+            if (navigationAction != null) {
+                Box(
+                    modifier = Modifier.align(Alignment.CenterStart),
+                ) {
+                    navigationAction()
+                }
+            }
             Text(
                 text = title,
+                modifier = Modifier
+                    .align(Alignment.CenterStart)
+                    .padding(start = if (navigationAction == null) 0.dp else 48.dp)
+                    .padding(end = 48.dp),
                 style = MaterialTheme.typography.headlineSmall,
                 fontWeight = FontWeight.Bold,
                 color = Color.White,
             )
+            if (action != null) {
+                Box(
+                    modifier = Modifier.align(Alignment.CenterEnd),
+                ) {
+                    action()
+                }
+            }
         }
     }
 }
