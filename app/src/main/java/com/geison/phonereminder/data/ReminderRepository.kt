@@ -11,6 +11,18 @@ class ReminderRepository(private val context: Context) {
     val state: StateFlow<AppState> = mutableState.asStateFlow()
 
     fun addReminder(text: String): String? {
+        return addReminder(
+            text = text,
+            schedule = ScheduleSettings(),
+            createdAtEpochMillis = System.currentTimeMillis(),
+        )
+    }
+
+    fun addReminder(
+        text: String,
+        schedule: ScheduleSettings,
+        createdAtEpochMillis: Long,
+    ): String? {
         val trimmed = text.trim()
         if (trimmed.isEmpty()) {
             return null
@@ -22,6 +34,8 @@ class ReminderRepository(private val context: Context) {
                 reminders = reminders + ReminderItem(
                     id = reminderId,
                     text = trimmed,
+                    createdAtEpochMillis = createdAtEpochMillis,
+                    schedule = schedule,
                 ),
             )
         }

@@ -21,6 +21,7 @@ data class NotificationWindowSettings(
 data class ReminderItem(
     val id: String,
     val text: String,
+    val createdAtEpochMillis: Long = System.currentTimeMillis(),
     val schedule: ScheduleSettings = ScheduleSettings(),
 )
 

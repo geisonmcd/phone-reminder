@@ -30,6 +30,36 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         return reminderId
     }
 
+    fun addReminder(
+        text: String,
+        notificationsPerWeek: Int,
+        notificationsPerDay: Int,
+        createdAtEpochMillis: Long,
+    ): String? {
+        val trimmedText = text.trim()
+        if (trimmedText.isEmpty()) {
+            return null
+        }
+
+        val safeNotificationsPerDay = notificationsPerDay.coerceIn(1, MAX_NOTIFICATIONS_PER_DAY)
+        val safeNotificationsPerWeek = snapWeeklyCount(
+            value = notificationsPerWeek,
+            notificationsPerDay = safeNotificationsPerDay,
+        )
+        val reminderId = repository.addReminder(
+            text = trimmedText,
+            schedule = ScheduleSettings(
+                notificationsPerWeek = safeNotificationsPerWeek,
+                notificationsPerDay = safeNotificationsPerDay,
+            ),
+            createdAtEpochMillis = createdAtEpochMillis,
+        )
+        if (reminderId != null) {
+            NotificationScheduler.scheduleToday(getApplication())
+        }
+        return reminderId
+    }
+
     fun deleteReminder(id: String) {
         repository.deleteReminder(id)
         NotificationScheduler.scheduleToday(getApplication())

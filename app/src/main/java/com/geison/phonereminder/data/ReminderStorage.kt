@@ -40,6 +40,7 @@ object ReminderStorage {
     private fun migrateLegacyState(element: JsonElement): JsonElement {
         val root = element as? JsonObject ?: return element
         val reminders = root["reminders"] as? JsonArray ?: return element
+        val migrationCreatedAt = System.currentTimeMillis()
 
         val reminderObjects = reminders.mapNotNull { it as? JsonObject }
         val legacyWindow = reminderObjects.firstNotNullOfOrNull { reminderObject ->
@@ -86,6 +87,9 @@ object ReminderStorage {
                     } else {
                         put(key, value)
                     }
+                }
+                if ("createdAtEpochMillis" !in reminderObject) {
+                    put("createdAtEpochMillis", migrationCreatedAt)
                 }
             }
         }

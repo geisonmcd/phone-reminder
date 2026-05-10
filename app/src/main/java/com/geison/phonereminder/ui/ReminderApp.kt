@@ -3,7 +3,6 @@ package com.geison.phonereminder.ui
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -29,6 +28,7 @@ import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.DeleteOutline
 import androidx.compose.material.icons.outlined.Search
+import androidx.compose.material.icons.outlined.Save
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -66,8 +66,12 @@ import com.geison.phonereminder.MainViewModel
 import com.geison.phonereminder.data.MAX_NOTIFICATIONS_PER_DAY
 import com.geison.phonereminder.data.NotificationWindowSettings
 import com.geison.phonereminder.data.ReminderItem
+import com.geison.phonereminder.data.ScheduleSettings
+import java.text.DateFormat
+import java.util.Date
 
 private const val NOTIFICATION_TEXT_WARNING_LIMIT = 300
+private const val NEW_REMINDER_ID = "new-reminder"
 
 private val AppBackgroundTop = Color(0xFFEAF4FF)
 private val AppBackgroundBottom = Color(0xFFF7FBFF)
@@ -112,13 +116,12 @@ fun ReminderApp(
     onOpenReminderHandled: () -> Unit = {},
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
-    var draftReminder by rememberSaveable { mutableStateOf("") }
     var reminderFilter by rememberSaveable { mutableStateOf("") }
     var selectedReminderId by rememberSaveable { mutableStateOf<String?>(null) }
+    var newReminderCreatedAt by rememberSaveable { mutableStateOf(System.currentTimeMillis()) }
     var showingConfig by rememberSaveable { mutableStateOf(false) }
     var showingPrivacyPolicy by rememberSaveable { mutableStateOf(false) }
     var configMessage by rememberSaveable { mutableStateOf<String?>(null) }
-    var expandedReminderIds by rememberSaveable { mutableStateOf(emptyList<String>()) }
 
     val exportLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.CreateDocument("text/plain"),
@@ -140,19 +143,25 @@ fun ReminderApp(
         }
     }
 
-    val selectedReminder = state.reminders.firstOrNull { it.id == selectedReminderId }
+    val isCreatingNewReminder = selectedReminderId == NEW_REMINDER_ID
+    val selectedReminder = if (isCreatingNewReminder) {
+        ReminderItem(
+            id = NEW_REMINDER_ID,
+            text = "",
+            createdAtEpochMillis = newReminderCreatedAt,
+            schedule = ScheduleSettings(),
+        )
+    } else {
+        state.reminders.firstOrNull { it.id == selectedReminderId }
+    }
     LaunchedEffect(selectedReminderId, selectedReminder, showingConfig) {
-        if (selectedReminderId != null && selectedReminder == null) {
+        if (selectedReminderId != null && !isCreatingNewReminder && selectedReminder == null) {
             selectedReminderId = null
         }
         if (selectedReminderId != null) {
             showingConfig = false
             showingPrivacyPolicy = false
         }
-    }
-    LaunchedEffect(state.reminders) {
-        val validIds = state.reminders.map { it.id }.toSet()
-        expandedReminderIds = expandedReminderIds.filter { it in validIds }
     }
     LaunchedEffect(openReminderId, state.reminders) {
         if (openReminderId == null) {
@@ -185,19 +194,35 @@ fun ReminderApp(
                     }
                     ReminderEditScreen(
                         reminder = selectedReminder,
+                        isNewReminder = isCreatingNewReminder,
                         onBack = { selectedReminderId = null },
                         onSave = { text, notificationsPerWeek, notificationsPerDay ->
-                            viewModel.saveReminder(
-                                reminderId = selectedReminder.id,
-                                text = text,
-                                notificationsPerWeek = notificationsPerWeek,
-                                notificationsPerDay = notificationsPerDay,
-                            )
-                            selectedReminderId = null
+                            if (isCreatingNewReminder) {
+                                if (
+                                    viewModel.addReminder(
+                                        text = text,
+                                        notificationsPerWeek = notificationsPerWeek,
+                                        notificationsPerDay = notificationsPerDay,
+                                        createdAtEpochMillis = selectedReminder.createdAtEpochMillis,
+                                    ) != null
+                                ) {
+                                    selectedReminderId = null
+                                }
+                            } else {
+                                viewModel.saveReminder(
+                                    reminderId = selectedReminder.id,
+                                    text = text,
+                                    notificationsPerWeek = notificationsPerWeek,
+                                    notificationsPerDay = notificationsPerDay,
+                                )
+                                selectedReminderId = null
+                            }
                         },
                         onDelete = {
-                            viewModel.deleteReminder(selectedReminder.id)
-                            selectedReminderId = null
+                            if (!isCreatingNewReminder) {
+                                viewModel.deleteReminder(selectedReminder.id)
+                                selectedReminderId = null
+                            }
                         },
                         onTestNotification = { reminderId, text ->
                             viewModel.testReminder(reminderId, text)
@@ -245,29 +270,15 @@ fun ReminderApp(
                     HomeScreen(
                         reminderCount = state.reminders.size,
                         reminders = state.reminders,
-                        draftReminder = draftReminder,
                         reminderFilter = reminderFilter,
-                        expandedReminderIds = expandedReminderIds,
-                        onDraftChange = { draftReminder = it },
                         onFilterChange = { reminderFilter = it },
                         onConfig = {
                             configMessage = null
                             showingConfig = true
                         },
-                        onAddReminder = {
-                            val reminderId = viewModel.addReminder(draftReminder)
-                            draftReminder = ""
-                            if (reminderId != null) {
-                                selectedReminderId = reminderId
-                            }
-                        },
-                        onToggleExpanded = { reminderId ->
-                            expandedReminderIds =
-                                if (reminderId in expandedReminderIds) {
-                                    expandedReminderIds - reminderId
-                                } else {
-                                    expandedReminderIds + reminderId
-                                }
+                        onNewReminder = {
+                            newReminderCreatedAt = System.currentTimeMillis()
+                            selectedReminderId = NEW_REMINDER_ID
                         },
                         onEdit = { reminderId -> selectedReminderId = reminderId },
                     )
@@ -281,31 +292,14 @@ fun ReminderApp(
 private fun HomeScreen(
     reminderCount: Int,
     reminders: List<ReminderItem>,
-    draftReminder: String,
     reminderFilter: String,
-    expandedReminderIds: List<String>,
-    onDraftChange: (String) -> Unit,
     onFilterChange: (String) -> Unit,
     onConfig: () -> Unit,
-    onAddReminder: () -> Unit,
-    onToggleExpanded: (String) -> Unit,
+    onNewReminder: () -> Unit,
     onEdit: (String) -> Unit,
 ) {
     val filteredReminders = reminders.filter { reminder ->
         reminder.text.contains(reminderFilter.trim(), ignoreCase = true)
-    }
-    var showAddReminderDialog by rememberSaveable { mutableStateOf(false) }
-
-    if (showAddReminderDialog) {
-        AddReminderDialog(
-            value = draftReminder,
-            onValueChange = onDraftChange,
-            onDismiss = { showAddReminderDialog = false },
-            onAddReminder = {
-                onAddReminder()
-                showAddReminderDialog = false
-            },
-        )
     }
 
     AppScaffold(
@@ -321,7 +315,7 @@ private fun HomeScreen(
         },
         floatingActionButton = {
             FloatingActionButton(
-                onClick = { showAddReminderDialog = true },
+                onClick = onNewReminder,
                 containerColor = MaterialTheme.colorScheme.primary,
                 contentColor = MaterialTheme.colorScheme.onPrimary,
             ) {
@@ -357,14 +351,13 @@ private fun HomeScreen(
                             filteredReminders.forEachIndexed { index, reminder ->
                                 if (index > 0) {
                                     HorizontalDivider(
-                                        modifier = Modifier.padding(vertical = 10.dp),
+                                        modifier = Modifier.padding(vertical = 4.dp),
                                         color = MaterialTheme.colorScheme.outline.copy(alpha = 0.35f),
                                     )
                                 }
                                 ReminderListItem(
                                     reminder = reminder,
-                                    expanded = reminder.id in expandedReminderIds,
-                                    onToggleExpanded = { onToggleExpanded(reminder.id) },
+                                    zebraIndex = index,
                                     onEdit = { onEdit(reminder.id) },
                                 )
                             }
@@ -541,6 +534,7 @@ private fun PrivacyPolicyScreen(
 @Composable
 private fun ReminderEditScreen(
     reminder: ReminderItem,
+    isNewReminder: Boolean,
     onBack: () -> Unit,
     onSave: (String, Int, Int) -> Unit,
     onDelete: () -> Unit,
@@ -580,7 +574,7 @@ private fun ReminderEditScreen(
     }
 
     AppScaffold(
-        title = "Edit reminder",
+        title = if (isNewReminder) "New reminder" else "Edit reminder",
         navigationAction = {
             IconButton(onClick = onBack) {
                 Icon(
@@ -590,15 +584,27 @@ private fun ReminderEditScreen(
                 )
             }
         },
+        floatingActionButton = {
+            FloatingActionButton(
+                onClick = { onSave(text, notificationsPerWeek, notificationsPerDay) },
+                containerColor = if (text.isBlank()) {
+                    MaterialTheme.colorScheme.surfaceVariant
+                } else {
+                    MaterialTheme.colorScheme.primary
+                },
+                contentColor = if (text.isBlank()) {
+                    MaterialTheme.colorScheme.onSurfaceVariant
+                } else {
+                    MaterialTheme.colorScheme.onPrimary
+                },
+            ) {
+                Icon(
+                    imageVector = Icons.Outlined.Save,
+                    contentDescription = "Save reminder",
+                )
+            }
+        },
     ) {
-        item {
-            ScreenIntroCard(
-                body = "Update the reminder text, tune the schedule, then save when you're done.",
-                buttonLabel = "Back without saving",
-                onButtonClick = onBack,
-            )
-        }
-
         item {
             AppCard(containerColor = PrimaryCardColor) {
                 Text(
@@ -631,6 +637,22 @@ private fun ReminderEditScreen(
                             )
                         }
                     },
+                )
+            }
+        }
+
+        item {
+            AppCard(containerColor = PrimaryCardColor) {
+                Text(
+                    text = "Info",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold,
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = "Created ${formatCreatedAt(reminder.createdAtEpochMillis)}",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
         }
@@ -680,45 +702,40 @@ private fun ReminderEditScreen(
             }
         }
 
-        item {
-            AppCard(containerColor = PrimaryCardColor) {
-                Text(
-                    text = "Actions",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold,
-                )
-                Spacer(modifier = Modifier.height(12.dp))
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Button(
-                        onClick = { onSave(text, notificationsPerWeek, notificationsPerDay) },
-                        enabled = text.isNotBlank(),
-                        modifier = Modifier.weight(1f),
+        if (!isNewReminder) {
+            item {
+                AppCard(containerColor = PrimaryCardColor) {
+                    Text(
+                        text = "Actions",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        Text("Save reminder")
-                    }
-                    Button(
-                        onClick = { onTestNotification(reminder.id, text) },
-                        enabled = text.isNotBlank(),
-                        modifier = Modifier.weight(1f),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = MaterialTheme.colorScheme.secondaryContainer,
-                            contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
-                        ),
-                    ) {
-                        Text("Test notification")
-                    }
-                    IconButton(
-                        onClick = { showDeleteConfirmation = true },
-                    ) {
-                        Icon(
-                            imageVector = Icons.Outlined.DeleteOutline,
-                            contentDescription = "Delete reminder",
-                            tint = MaterialTheme.colorScheme.error,
-                        )
+                        Button(
+                            onClick = { onTestNotification(reminder.id, text) },
+                            enabled = text.isNotBlank(),
+                            modifier = Modifier.weight(1f),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                                contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+                            ),
+                        ) {
+                            Text("Test notification")
+                        }
+                        IconButton(
+                            onClick = { showDeleteConfirmation = true },
+                        ) {
+                            Icon(
+                                imageVector = Icons.Outlined.DeleteOutline,
+                                contentDescription = "Delete reminder",
+                                tint = MaterialTheme.colorScheme.error,
+                            )
+                        }
                     }
                 }
             }
@@ -749,42 +766,6 @@ private fun ScreenIntroCard(
             Text(buttonLabel)
         }
     }
-}
-
-@Composable
-private fun AddReminderDialog(
-    value: String,
-    onValueChange: (String) -> Unit,
-    onDismiss: () -> Unit,
-    onAddReminder: () -> Unit,
-) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("Add a reminder") },
-        text = {
-            OutlinedTextField(
-                value = value,
-                onValueChange = onValueChange,
-                modifier = Modifier.fillMaxWidth(),
-                minLines = 3,
-                label = { Text("Reminder text") },
-                colors = appTextFieldColors(),
-            )
-        },
-        confirmButton = {
-            TextButton(
-                onClick = onAddReminder,
-                enabled = value.isNotBlank(),
-            ) {
-                Text("Create")
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text("Cancel")
-            }
-        },
-    )
 }
 
 @Composable
@@ -867,51 +848,32 @@ private fun ReminderListCard(
 @Composable
 private fun ReminderListItem(
     reminder: ReminderItem,
-    expanded: Boolean,
-    onToggleExpanded: () -> Unit,
+    zebraIndex: Int,
     onEdit: () -> Unit,
 ) {
-    var isExpandable by rememberSaveable(reminder.id, reminder.text) { mutableStateOf(false) }
-    val canToggle = expanded || isExpandable
+    val rowColor = if (zebraIndex % 2 == 0) {
+        Color.White.copy(alpha = 0.48f)
+    } else {
+        MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.36f)
+    }
 
     Column(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(18.dp))
-            .then(
-                if (canToggle) {
-                    Modifier.clickable(onClick = onToggleExpanded)
-                } else {
-                    Modifier
-                },
-            )
-            .padding(2.dp),
+            .background(rowColor)
+            .clickable(onClick = onEdit)
+            .padding(horizontal = 12.dp, vertical = 10.dp),
     ) {
         Text(
             text = reminder.text,
-            modifier = Modifier.animateContentSize(),
             style = MaterialTheme.typography.bodyLarge,
             fontWeight = FontWeight.Medium,
-            maxLines = if (expanded) Int.MAX_VALUE else 2,
+            maxLines = 3,
             overflow = TextOverflow.Ellipsis,
-            onTextLayout = { result ->
-                if (!expanded) {
-                    isExpandable = result.hasVisualOverflow
-                }
-            },
         )
         Spacer(modifier = Modifier.height(8.dp))
         InfoPill(text = scheduleSummary(reminder))
-        Spacer(modifier = Modifier.height(4.dp))
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.End,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            TextButton(onClick = onEdit) {
-                Text("Edit")
-            }
-        }
     }
 }
 
@@ -1162,6 +1124,11 @@ private fun appTextFieldColors() = OutlinedTextFieldDefaults.colors(
 
 private fun hourLabel(hour: Int): String {
     return "%02d:00".format(hour)
+}
+
+private fun formatCreatedAt(epochMillis: Long): String {
+    val formatter = DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT)
+    return formatter.format(Date(epochMillis))
 }
 
 private fun scheduleSummary(reminder: ReminderItem): String {
