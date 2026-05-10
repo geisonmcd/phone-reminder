@@ -1,6 +1,8 @@
 <resources>
     <string name="app_name">Smart Random Reminder</string>
     <string name="notification_title_reminder">Lembrete</string>
+    <string name="notification_action_see_less">Ver menos: %1$d/semana, %2$d/dia</string>
+    <string name="notification_action_see_more">Ver mais: %1$d/semana, %2$d/dia</string>
     <string name="notification_channel_reminders">Lembretes</string>
     <string name="notification_channel_reminders_description">Notificações de lembretes agendadas durante o dia.</string>
 

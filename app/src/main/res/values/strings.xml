@@ -1,6 +1,8 @@
 <resources>
     <string name="app_name">Smart Random Reminder</string>
     <string name="notification_title_reminder">Reminder</string>
+    <string name="notification_action_see_less">See less: %1$d/week, %2$d/day</string>
+    <string name="notification_action_see_more">See more: %1$d/week, %2$d/day</string>
     <string name="notification_channel_reminders">Reminders</string>
     <string name="notification_channel_reminders_description">Reminder notifications scheduled during the day.</string>
 
