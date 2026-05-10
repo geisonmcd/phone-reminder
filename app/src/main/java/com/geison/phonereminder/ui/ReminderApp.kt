@@ -302,9 +302,11 @@ private fun HomeScreen(
     onNewReminder: () -> Unit,
     onEdit: (String) -> Unit,
 ) {
-    val filteredReminders = reminders.filter { reminder ->
-        reminder.text.contains(reminderFilter.trim(), ignoreCase = true)
-    }
+    val filteredReminders = reminders
+        .sortedByDescending { it.createdAtEpochMillis }
+        .filter { reminder ->
+            reminder.text.contains(reminderFilter.trim(), ignoreCase = true)
+        }
 
     AppScaffold(
         title = stringResource(R.string.screen_title_home),
@@ -353,12 +355,6 @@ private fun HomeScreen(
                         }
                         else -> {
                             filteredReminders.forEachIndexed { index, reminder ->
-                                if (index > 0) {
-                                    HorizontalDivider(
-                                        modifier = Modifier.padding(vertical = 4.dp),
-                                        color = MaterialTheme.colorScheme.outline.copy(alpha = 0.35f),
-                                    )
-                                }
                                 ReminderListItem(
                                     reminder = reminder,
                                     zebraIndex = index,
@@ -396,14 +392,6 @@ private fun ConfigScreen(
             }
         },
     ) {
-        item {
-            ScreenIntroCard(
-                body = stringResource(R.string.config_intro),
-                buttonLabel = stringResource(R.string.action_back_to_reminders),
-                onButtonClick = onBack,
-            )
-        }
-
         if (!message.isNullOrBlank()) {
             item {
                 MessageCard(message = message)
@@ -452,20 +440,9 @@ private fun ConfigScreen(
         }
 
         item {
-            ConfigActionCard(
-                title = stringResource(R.string.config_export_title),
-                body = stringResource(R.string.config_export_body),
-                buttonLabel = stringResource(R.string.action_export_txt),
-                onClick = onExport,
-            )
-        }
-
-        item {
-            ConfigActionCard(
-                title = stringResource(R.string.config_import_title),
-                body = stringResource(R.string.config_import_body),
-                buttonLabel = stringResource(R.string.action_import_txt),
-                onClick = onImport,
+            BackupActionsCard(
+                onExport = onExport,
+                onImport = onImport,
             )
         }
 
@@ -654,25 +631,6 @@ private fun ReminderEditScreen(
         }
 
         item {
-            AppCard(containerColor = PrimaryCardColor) {
-                Text(
-                    text = stringResource(R.string.info_title),
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold,
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-                Text(
-                    text = stringResource(
-                        R.string.created_at,
-                        formatCreatedAt(reminder.createdAtEpochMillis),
-                    ),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-        }
-
-        item {
             AppCard(containerColor = SecondaryCardColor) {
                 Text(
                     text = stringResource(R.string.schedule_title),
@@ -755,6 +713,25 @@ private fun ReminderEditScreen(
                 }
             }
         }
+
+        item {
+            AppCard(containerColor = PrimaryCardColor) {
+                Text(
+                    text = stringResource(R.string.info_title),
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold,
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = stringResource(
+                        R.string.created_at,
+                        formatCreatedAt(reminder.createdAtEpochMillis),
+                    ),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
     }
 }
 
@@ -817,6 +794,62 @@ private fun ConfigActionCard(
 }
 
 @Composable
+private fun BackupActionsCard(
+    onExport: () -> Unit,
+    onImport: () -> Unit,
+) {
+    AppCard(containerColor = PrimaryCardColor) {
+        ConfigActionSection(
+            title = stringResource(R.string.config_export_title),
+            body = stringResource(R.string.config_export_body),
+            buttonLabel = stringResource(R.string.action_export_txt),
+            onClick = onExport,
+        )
+        HorizontalDivider(
+            modifier = Modifier.padding(vertical = 14.dp),
+            color = MaterialTheme.colorScheme.outline.copy(alpha = 0.35f),
+        )
+        ConfigActionSection(
+            title = stringResource(R.string.config_import_title),
+            body = stringResource(R.string.config_import_body),
+            buttonLabel = stringResource(R.string.action_import_txt),
+            onClick = onImport,
+        )
+    }
+}
+
+@Composable
+private fun ConfigActionSection(
+    title: String,
+    body: String,
+    buttonLabel: String,
+    onClick: () -> Unit,
+) {
+    Text(
+        text = title,
+        style = MaterialTheme.typography.titleMedium,
+        fontWeight = FontWeight.SemiBold,
+    )
+    Spacer(modifier = Modifier.height(8.dp))
+    Text(
+        text = body,
+        style = MaterialTheme.typography.bodyMedium,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+    )
+    Spacer(modifier = Modifier.height(12.dp))
+    Button(
+        onClick = onClick,
+        modifier = Modifier.fillMaxWidth(),
+        colors = ButtonDefaults.buttonColors(
+            containerColor = MaterialTheme.colorScheme.primary,
+            contentColor = MaterialTheme.colorScheme.onPrimary,
+        ),
+    ) {
+        Text(buttonLabel)
+    }
+}
+
+@Composable
 private fun ReminderListCard(
     reminderCount: Int,
     filteredCount: Int,
@@ -836,7 +869,12 @@ private fun ReminderListCard(
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.SemiBold,
             )
-            InfoPill(text = reminderCountLabel(reminderCount, filteredCount, isFiltering))
+            Text(
+                text = reminderCountLabel(reminderCount, filteredCount, isFiltering),
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = FontWeight.Medium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
         }
         Spacer(modifier = Modifier.height(8.dp))
         OutlinedTextField(
@@ -853,9 +891,7 @@ private fun ReminderListCard(
             },
             colors = appTextFieldColors(),
         )
-        Spacer(modifier = Modifier.height(12.dp))
-        InfoPill(text = reminderCountLabel(reminderCount, filteredCount, isFiltering))
-        Spacer(modifier = Modifier.height(12.dp))
+        Spacer(modifier = Modifier.height(14.dp))
         content()
     }
 }
@@ -867,18 +903,17 @@ private fun ReminderListItem(
     onEdit: () -> Unit,
 ) {
     val rowColor = if (zebraIndex % 2 == 0) {
-        Color.White.copy(alpha = 0.48f)
+        Color.White.copy(alpha = 0.62f)
     } else {
-        MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.36f)
+        MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.56f)
     }
 
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(18.dp))
             .background(rowColor)
             .clickable(onClick = onEdit)
-            .padding(horizontal = 12.dp, vertical = 10.dp),
+            .padding(horizontal = 14.dp, vertical = 12.dp),
     ) {
         Text(
             text = reminder.text,
@@ -1081,7 +1116,12 @@ private fun FixedMenuBar(
                     ),
                 )
                 .statusBarsPadding()
-                .padding(horizontal = 20.dp, vertical = 18.dp),
+                .padding(
+                    start = if (navigationAction == null) 20.dp else 6.dp,
+                    top = 18.dp,
+                    end = 20.dp,
+                    bottom = 18.dp,
+                ),
         ) {
             if (navigationAction != null) {
                 Box(
