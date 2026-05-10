@@ -6,6 +6,7 @@ import com.geison.phonereminder.data.ReminderItem
 import com.geison.phonereminder.data.ScheduleSettings
 import org.junit.Assert.assertEquals
 import org.junit.Test
+import java.time.DayOfWeek
 import java.time.LocalDate
 import kotlin.random.Random
 
@@ -123,6 +124,39 @@ class NotificationSchedulerTest {
         )
 
         assertEquals(350, plan.size)
+    }
+
+    @Test
+    fun createSchedulePlanOnlyUsesConfiguredReminderDays() {
+        val startDay = LocalDate.of(2026, 4, 13) // Monday
+        val state = AppState(
+            reminderDays = setOf(DayOfWeek.MONDAY, DayOfWeek.WEDNESDAY),
+            notificationWindow = NotificationWindowSettings(
+                startHour = 9,
+                endHour = 10,
+            ),
+            reminders = listOf(
+                ReminderItem(
+                    id = "limited-days",
+                    text = "Stay focused.",
+                    schedule = ScheduleSettings(
+                        notificationsPerWeek = 7,
+                        notificationsPerDay = 1,
+                    ),
+                ),
+            ),
+        )
+
+        val plan = NotificationScheduler.createSchedulePlan(
+            state = state,
+            startDay = startDay,
+            totalDays = 7,
+        )
+
+        assertEquals(
+            setOf(DayOfWeek.MONDAY, DayOfWeek.WEDNESDAY),
+            plan.map { it.triggerAt.dayOfWeek }.toSet(),
+        )
     }
 
     private fun reminder(id: String): ReminderItem {

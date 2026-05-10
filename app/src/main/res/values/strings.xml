@@ -50,6 +50,15 @@
     <string name="config_default_hours_body">Applies to all reminders.</string>
     <string name="label_start_hour">Start hour</string>
     <string name="label_end_hour">End hour</string>
+    <string name="config_reminder_days_title">Reminder days</string>
+    <string name="config_reminder_days_body">Choose which days can receive reminders.</string>
+    <string name="weekday_monday">Monday</string>
+    <string name="weekday_tuesday">Tuesday</string>
+    <string name="weekday_wednesday">Wednesday</string>
+    <string name="weekday_thursday">Thursday</string>
+    <string name="weekday_friday">Friday</string>
+    <string name="weekday_saturday">Saturday</string>
+    <string name="weekday_sunday">Sunday</string>
     <string name="config_export_title">Export reminders</string>
     <string name="config_export_body">Save to a text file.</string>
     <string name="config_import_title">Import reminders</string>

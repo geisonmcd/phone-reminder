@@ -3,12 +3,14 @@ package com.geison.phonereminder.data
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import java.time.DayOfWeek
 
 class ReminderExchangeTest {
     @Test
     fun exportAndImportRoundTripPreservesReminderContent() {
         val exported = ReminderExchange.export(
             AppState(
+                reminderDays = setOf(DayOfWeek.MONDAY, DayOfWeek.WEDNESDAY, DayOfWeek.FRIDAY),
                 notificationWindow = NotificationWindowSettings(
                     startHour = 8,
                     endHour = 19,
@@ -37,6 +39,10 @@ class ReminderExchangeTest {
         val imported = ReminderExchange.import(exported)
 
         assertEquals(2, imported.reminders.size)
+        assertEquals(
+            setOf(DayOfWeek.MONDAY, DayOfWeek.WEDNESDAY, DayOfWeek.FRIDAY),
+            imported.reminderDays,
+        )
         assertEquals(8, imported.notificationWindow.startHour)
         assertEquals(19, imported.notificationWindow.endHour)
         assertEquals("Protect your attention.", imported.reminders[0].text)

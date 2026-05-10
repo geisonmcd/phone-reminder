@@ -15,6 +15,7 @@ import com.geison.phonereminder.notifications.NotificationScheduler
 import com.geison.phonereminder.notifications.ReminderNotifier
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import java.time.DayOfWeek
 
 class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val repository = ReminderRepository(application)
@@ -109,6 +110,20 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             startHour = safeStartHour,
             endHour = safeEndHour,
         )
+        NotificationScheduler.scheduleToday(getApplication())
+    }
+
+    fun updateReminderDay(
+        dayOfWeek: DayOfWeek,
+        isEnabled: Boolean,
+    ) {
+        val currentDays = state.value.reminderDays
+        val updatedDays = if (isEnabled) {
+            currentDays + dayOfWeek
+        } else {
+            currentDays - dayOfWeek
+        }
+        repository.updateReminderDays(updatedDays)
         NotificationScheduler.scheduleToday(getApplication())
     }
 

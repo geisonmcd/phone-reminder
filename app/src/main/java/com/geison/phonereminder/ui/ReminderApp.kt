@@ -35,6 +35,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -71,6 +72,7 @@ import com.geison.phonereminder.data.NotificationWindowSettings
 import com.geison.phonereminder.data.ReminderItem
 import com.geison.phonereminder.data.ScheduleSettings
 import java.text.DateFormat
+import java.time.DayOfWeek
 import java.util.Date
 
 private const val NOTIFICATION_TEXT_WARNING_LIMIT = 300
@@ -238,6 +240,7 @@ fun ReminderApp(
                     }
                     ConfigScreen(
                         notificationWindow = state.notificationWindow,
+                        reminderDays = state.reminderDays,
                         message = configMessage,
                         onBack = { showingConfig = false },
                         onStartHourChange = { startHour ->
@@ -252,6 +255,7 @@ fun ReminderApp(
                                 endHour = endHour,
                             )
                         },
+                        onReminderDayChange = viewModel::updateReminderDay,
                         onExport = {
                             exportLauncher.launch(context.getString(R.string.file_name_export))
                         },
@@ -372,10 +376,12 @@ private fun HomeScreen(
 @Composable
 private fun ConfigScreen(
     notificationWindow: NotificationWindowSettings,
+    reminderDays: Set<DayOfWeek>,
     message: String?,
     onBack: () -> Unit,
     onStartHourChange: (Int) -> Unit,
     onEndHourChange: (Int) -> Unit,
+    onReminderDayChange: (DayOfWeek, Boolean) -> Unit,
     onExport: () -> Unit,
     onImport: () -> Unit,
     onPrivacyPolicy: () -> Unit,
@@ -440,6 +446,13 @@ private fun ConfigScreen(
         }
 
         item {
+            ReminderDaysCard(
+                reminderDays = reminderDays,
+                onReminderDayChange = onReminderDayChange,
+            )
+        }
+
+        item {
             BackupActionsCard(
                 onExport = onExport,
                 onImport = onImport,
@@ -454,6 +467,68 @@ private fun ConfigScreen(
                 onClick = onPrivacyPolicy,
             )
         }
+    }
+}
+
+@Composable
+private fun ReminderDaysCard(
+    reminderDays: Set<DayOfWeek>,
+    onReminderDayChange: (DayOfWeek, Boolean) -> Unit,
+) {
+    AppCard(containerColor = PrimaryCardColor) {
+        Text(
+            text = stringResource(R.string.config_reminder_days_title),
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.SemiBold,
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+        Text(
+            text = stringResource(R.string.config_reminder_days_body),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+        reminderDayOptions().forEachIndexed { index, option ->
+            ReminderDayCheckboxRow(
+                option = option,
+                checked = option.dayOfWeek in reminderDays,
+                onCheckedChange = { isChecked ->
+                    onReminderDayChange(option.dayOfWeek, isChecked)
+                },
+            )
+            if (index < DayOfWeek.values().lastIndex) {
+                HorizontalDivider(
+                    modifier = Modifier.padding(vertical = 2.dp),
+                    color = MaterialTheme.colorScheme.outline.copy(alpha = 0.2f),
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun ReminderDayCheckboxRow(
+    option: ReminderDayOption,
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onCheckedChange(!checked) }
+            .padding(vertical = 6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Checkbox(
+            checked = checked,
+            onCheckedChange = onCheckedChange,
+        )
+        Spacer(modifier = Modifier.width(8.dp))
+        Text(
+            text = option.label,
+            style = MaterialTheme.typography.bodyLarge,
+            fontWeight = FontWeight.Medium,
+        )
     }
 }
 
@@ -1187,6 +1262,19 @@ private fun formatCreatedAt(epochMillis: Long): String {
 }
 
 @Composable
+private fun reminderDayOptions(): List<ReminderDayOption> {
+    return listOf(
+        ReminderDayOption(DayOfWeek.MONDAY, stringResource(R.string.weekday_monday)),
+        ReminderDayOption(DayOfWeek.TUESDAY, stringResource(R.string.weekday_tuesday)),
+        ReminderDayOption(DayOfWeek.WEDNESDAY, stringResource(R.string.weekday_wednesday)),
+        ReminderDayOption(DayOfWeek.THURSDAY, stringResource(R.string.weekday_thursday)),
+        ReminderDayOption(DayOfWeek.FRIDAY, stringResource(R.string.weekday_friday)),
+        ReminderDayOption(DayOfWeek.SATURDAY, stringResource(R.string.weekday_saturday)),
+        ReminderDayOption(DayOfWeek.SUNDAY, stringResource(R.string.weekday_sunday)),
+    )
+}
+
+@Composable
 private fun scheduleSummary(reminder: ReminderItem): String {
     return stringResource(
         R.string.schedule_summary,
@@ -1209,6 +1297,11 @@ private fun reminderCountLabel(
         stringResource(R.string.reminder_count_many, totalCount)
     }
 }
+
+private data class ReminderDayOption(
+    val dayOfWeek: DayOfWeek,
+    val label: String,
+)
 
 private fun snapWeeklyCount(
     value: Int,

@@ -1,9 +1,11 @@
 package com.geison.phonereminder.data
 
 import kotlinx.serialization.Serializable
+import java.time.DayOfWeek
 
 const val MAX_NOTIFICATIONS_PER_DAY = 50
 const val MAX_NOTIFICATIONS_PER_WEEK = MAX_NOTIFICATIONS_PER_DAY * 7
+val DEFAULT_REMINDER_DAYS: Set<DayOfWeek> = DayOfWeek.values().toSet()
 
 @Serializable
 data class ScheduleSettings(
@@ -29,4 +31,5 @@ data class ReminderItem(
 data class AppState(
     val reminders: List<ReminderItem> = emptyList(),
     val notificationWindow: NotificationWindowSettings = NotificationWindowSettings(),
+    val reminderDays: Set<DayOfWeek> = DEFAULT_REMINDER_DAYS,
 )

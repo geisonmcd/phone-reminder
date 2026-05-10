@@ -10,6 +10,7 @@ import com.geison.phonereminder.data.MAX_NOTIFICATIONS_PER_WEEK
 import com.geison.phonereminder.data.ReminderItem
 import com.geison.phonereminder.data.ReminderStorage
 import java.time.Duration
+import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.LocalTime
@@ -126,6 +127,10 @@ object NotificationScheduler {
         day: LocalDate,
         random: Random,
     ): List<ScheduledReminder> {
+        if (day.dayOfWeek !in state.reminderDays) {
+            return emptyList()
+        }
+
         val occurrences = state.reminders
             .asSequence()
             .filter { it.text.isNotBlank() }
@@ -184,6 +189,7 @@ object NotificationScheduler {
         val remindersToday = countScheduledOccurrencesForDay(
             weekStart = weekStart,
             reminder = reminder,
+            reminderDays = state.reminderDays,
             notificationsPerWeek = notificationsPerWeek,
             notificationsPerDay = notificationsPerDay,
             dayIndex = dayIndex,
@@ -201,12 +207,21 @@ object NotificationScheduler {
     private fun countScheduledOccurrencesForDay(
         weekStart: LocalDate,
         reminder: ReminderItem,
+        reminderDays: Set<DayOfWeek>,
         notificationsPerWeek: Int,
         notificationsPerDay: Int,
         dayIndex: Int,
     ): Int {
-        val activeDays = (notificationsPerWeek / notificationsPerDay).coerceIn(1, 7)
-        val slots = (0 until 7).toMutableList()
+        val allowedSlots = DayOfWeek.values()
+            .mapIndexedNotNull { index, dayOfWeek ->
+                if (dayOfWeek in reminderDays) index else null
+            }
+        if (allowedSlots.isEmpty()) {
+            return 0
+        }
+
+        val activeDays = (notificationsPerWeek / notificationsPerDay).coerceIn(1, allowedSlots.size)
+        val slots = allowedSlots.toMutableList()
         val weekSeed = buildWeekSeed(weekStart, reminder)
         slots.shuffle(Random(weekSeed.toInt()))
         return if (dayIndex in slots.take(activeDays)) notificationsPerDay else 0

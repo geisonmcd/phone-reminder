@@ -1,5 +1,6 @@
 package com.geison.phonereminder.data
 
+import java.time.DayOfWeek
 import java.util.UUID
 
 object ReminderExchange {
@@ -10,6 +11,7 @@ object ReminderExchange {
     private const val reminderEnd = "End reminder"
     private const val defaultStartHourLabel = "Default start hour: "
     private const val defaultEndHourLabel = "Default end hour: "
+    private const val reminderDaysLabel = "Reminder days: "
     private const val notificationsLabel = "Notifications per week: "
     private const val notificationsPerDayLabel = "Notifications per day: "
 
@@ -22,6 +24,9 @@ object ReminderExchange {
             "",
             defaultStartHourLabel + state.notificationWindow.startHour,
             defaultEndHourLabel + state.notificationWindow.endHour,
+            reminderDaysLabel + state.reminderDays
+                .sortedBy { it.value }
+                .joinToString(",") { it.name },
         )
 
         state.reminders.forEach { reminder ->
@@ -49,6 +54,7 @@ object ReminderExchange {
 
         var defaultStartHour: Int? = null
         var defaultEndHour: Int? = null
+        var reminderDays = DEFAULT_REMINDER_DAYS
         while (!cursor.isAtEnd && cursor.peekLine() != separator) {
             when {
                 cursor.peekLine()?.startsWith(defaultStartHourLabel) == true -> {
@@ -63,6 +69,10 @@ object ReminderExchange {
                         prefix = defaultEndHourLabel,
                         errorLabel = "Default end hour",
                     ).coerceIn(1, 23)
+                }
+
+                cursor.peekLine()?.startsWith(reminderDaysLabel) == true -> {
+                    reminderDays = parseReminderDays(cursor.readLine().removePrefix(reminderDaysLabel))
                 }
 
                 else -> cursor.readLine()
@@ -144,7 +154,20 @@ object ReminderExchange {
                 startHour = startHour,
                 endHour = endHour,
             ),
+            reminderDays = reminderDays,
         )
+    }
+
+    private fun parseReminderDays(rawDays: String): Set<DayOfWeek> {
+        if (rawDays.isBlank()) {
+            return emptySet()
+        }
+
+        return rawDays.split(",")
+            .map { rawDay ->
+                DayOfWeek.valueOf(rawDay.trim().uppercase())
+            }
+            .toSet()
     }
 
     private fun snapWeeklyCount(

@@ -50,6 +50,15 @@
     <string name="config_default_hours_body">Aplicado a todos os lembretes.</string>
     <string name="label_start_hour">Hora inicial</string>
     <string name="label_end_hour">Hora final</string>
+    <string name="config_reminder_days_title">Dias dos lembretes</string>
+    <string name="config_reminder_days_body">Escolha em quais dias os lembretes podem aparecer.</string>
+    <string name="weekday_monday">Segunda-feira</string>
+    <string name="weekday_tuesday">Terça-feira</string>
+    <string name="weekday_wednesday">Quarta-feira</string>
+    <string name="weekday_thursday">Quinta-feira</string>
+    <string name="weekday_friday">Sexta-feira</string>
+    <string name="weekday_saturday">Sábado</string>
+    <string name="weekday_sunday">Domingo</string>
     <string name="config_export_title">Exportar lembretes</string>
     <string name="config_export_body">Salve em um arquivo de texto.</string>
     <string name="config_import_title">Importar lembretes</string>
