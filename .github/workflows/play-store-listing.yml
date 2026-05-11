@@ -50,6 +50,7 @@ jobs:
             --json_key "$RUNNER_TEMP/play-service-account.json" \
             --package_name com.geison.smartrandomreminder \
             --metadata_path "$RUNNER_TEMP/metadata" \
+            --track alpha \
             --skip_upload_apk true \
             --skip_upload_aab true \
             --skip_upload_changelogs true
