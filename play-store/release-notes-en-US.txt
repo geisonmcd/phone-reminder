@@ -1,7 +1,6 @@
-Initial Play Store release of Smart Random Reminder.
+Smart Random Reminder now gives you more control over when reminders appear.
 
-- Create and edit reminders quickly
-- Set reminder frequency up to 50 notifications per day
-- Filter reminders from the home screen
-- Export and import reminders as text
+- Choose which weekdays can receive reminders
+- Adjust reminder frequency directly from notifications
+- See the target weekly and daily counts before tapping notification actions
 - Keep reminder data stored locally on device

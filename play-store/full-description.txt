@@ -1,12 +1,14 @@
 Smart Random Reminder helps you keep short, intentional reminders on your phone without turning them into a complicated task manager.
 
-Create reminders in seconds, choose how often they should appear, and keep the schedule inside the hours that work for you.
+Create reminders in seconds, choose how often they should appear, pick the days that can receive reminders, and keep the schedule inside the hours that work for you.
 
 Features:
 - Simple reminder list with fast editing
 - Per-reminder frequency controls
 - Up to 50 notifications per day for a single reminder
 - Default notification hours for the whole app
+- Weekday selection for reminder delivery
+- Notification actions to see a reminder more or less often
 - Case-insensitive reminder filtering
 - Plain-text export and import
 - Local storage on your device

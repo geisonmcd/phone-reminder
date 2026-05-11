@@ -1,0 +1,49 @@
+name: Play Store Listing
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: play-store-listing
+  cancel-in-progress: false
+
+jobs:
+  upload-listing:
+    name: Upload store listing metadata
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.3"
+
+      - name: Install fastlane
+        run: gem install fastlane --no-document
+
+      - name: Prepare Play Store metadata
+        run: |
+          mkdir -p "$RUNNER_TEMP/metadata/en-US/images/phoneScreenshots"
+          printf '%s\n' "Smart Random Reminder" > "$RUNNER_TEMP/metadata/en-US/title.txt"
+          cp play-store/short-description.txt "$RUNNER_TEMP/metadata/en-US/short_description.txt"
+          cp play-store/full-description.txt "$RUNNER_TEMP/metadata/en-US/full_description.txt"
+          cp play-store/screenshots/*.png "$RUNNER_TEMP/metadata/en-US/images/phoneScreenshots/"
+          printf '%s' "$PLAY_SERVICE_ACCOUNT_JSON" > "$RUNNER_TEMP/play-service-account.json"
+        env:
+          PLAY_SERVICE_ACCOUNT_JSON: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
+
+      - name: Upload listing to Play Console
+        run: |
+          fastlane supply \
+            --json_key "$RUNNER_TEMP/play-service-account.json" \
+            --package_name com.geison.smartrandomreminder \
+            --metadata_path "$RUNNER_TEMP/metadata" \
+            --skip_upload_apk true \
+            --skip_upload_aab true \
+            --skip_upload_changelogs true
