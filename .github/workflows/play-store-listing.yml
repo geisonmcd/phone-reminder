@@ -45,6 +45,7 @@ jobs:
             --package_name com.geison.smartrandomreminder \
             --metadata_path "$RUNNER_TEMP/metadata" \
             --track alpha \
+            --version_code 10 \
             --skip_upload_apk true \
             --skip_upload_aab true \
             --skip_upload_changelogs true
