@@ -1,6 +1,6 @@
 # Google Play API Setup
 
-Use this once to let GitHub Actions upload releases to the Play Console closed testing track.
+Use this once to let GitHub Actions upload releases and store listing updates to Play Console.
 
 ## 1. Create or link an API project
 
@@ -21,7 +21,12 @@ Use this once to let GitHub Actions upload releases to the Play Console closed t
 1. In Play Console, open `Setup > Users and permissions`.
 2. Invite the service account email from the JSON field `client_email`.
 3. Grant app access for `Smart Random Reminder`.
-4. Grant release permissions for testing tracks.
+4. Grant these app permissions:
+   - `View app information (read-only)`
+   - `Manage store presence`
+   - `Release apps to testing tracks`
+
+`Manage store presence` is required for the `Play Store Listing` workflow because it uploads the title, descriptions, app icon, feature graphic, and screenshots. Without it, fastlane can prepare the upload but fails when committing the edit with `Google Api Error: Invalid request - The caller does not have permission`.
 
 ## 4. Store the JSON in GitHub
 
@@ -31,4 +36,4 @@ Run this from the repository root, replacing the path with the downloaded JSON k
 gh secret set PLAY_SERVICE_ACCOUNT_JSON --repo geisonmcd/phone-reminder < path/to/service-account.json
 ```
 
-The existing release workflow will then upload new builds to the closed testing `alpha` track.
+The release workflow will upload new builds to the closed testing `alpha` track. The listing workflow will submit the store listing metadata and graphics from `play-store/`.

@@ -29,10 +29,16 @@ jobs:
 
       - name: Prepare Play Store metadata
         run: |
+          test -n "$PLAY_SERVICE_ACCOUNT_JSON"
+          test -f play-store/graphics/app-icon-512.png
+          test -f play-store/graphics/feature-graphic-1024x500.png
+          test -n "$(find play-store/screenshots -maxdepth 1 -name '*.png' -print -quit)"
           mkdir -p "$RUNNER_TEMP/metadata/en-US/images/phoneScreenshots"
           printf '%s\n' "Smart Random Reminder" > "$RUNNER_TEMP/metadata/en-US/title.txt"
           cp play-store/short-description.txt "$RUNNER_TEMP/metadata/en-US/short_description.txt"
           cp play-store/full-description.txt "$RUNNER_TEMP/metadata/en-US/full_description.txt"
+          cp play-store/graphics/app-icon-512.png "$RUNNER_TEMP/metadata/en-US/images/icon.png"
+          cp play-store/graphics/feature-graphic-1024x500.png "$RUNNER_TEMP/metadata/en-US/images/featureGraphic.png"
           cp play-store/screenshots/*.png "$RUNNER_TEMP/metadata/en-US/images/phoneScreenshots/"
           printf '%s' "$PLAY_SERVICE_ACCOUNT_JSON" > "$RUNNER_TEMP/play-service-account.json"
         env:
@@ -44,8 +50,6 @@ jobs:
             --json_key "$RUNNER_TEMP/play-service-account.json" \
             --package_name com.geison.smartrandomreminder \
             --metadata_path "$RUNNER_TEMP/metadata" \
-            --track alpha \
-            --version_code 10 \
             --skip_upload_apk true \
             --skip_upload_aab true \
             --skip_upload_changelogs true
