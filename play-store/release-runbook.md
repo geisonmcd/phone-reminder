@@ -28,12 +28,15 @@ The workflow requires these GitHub repository secrets:
 - `RELEASE_KEY_ALIAS`
 - `RELEASE_KEY_PASSWORD`
 - `PLAY_SERVICE_ACCOUNT_JSON`
+- `FIREBASE_GOOGLE_SERVICES_JSON` if `app/google-services.json` is not committed
 
 See `play-store/google-play-api-setup.md` if `PLAY_SERVICE_ACCOUNT_JSON` has not been configured yet.
 
 ## 2. Store Listing
 
-Open the default store listing and fill:
+The `Play Store Listing` workflow can upload this metadata after a release exists. Dispatch it with the release `versionCode`.
+
+For a manual fallback, open the default store listing and fill:
 
 - App name: `Smart Random Reminder`
 - Short description: `play-store/short-description.txt`

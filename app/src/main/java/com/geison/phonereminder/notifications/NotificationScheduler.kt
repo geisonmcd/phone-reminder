@@ -4,6 +4,7 @@ import android.app.AlarmManager
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
+import com.geison.phonereminder.diagnostics.Diagnostics
 import com.geison.phonereminder.data.AppState
 import com.geison.phonereminder.data.MAX_NOTIFICATIONS_PER_DAY
 import com.geison.phonereminder.data.MAX_NOTIFICATIONS_PER_WEEK
@@ -30,6 +31,9 @@ object NotificationScheduler {
         NotificationChannels.ensureCreated(context)
 
         val appState = ReminderStorage.load(context)
+        Diagnostics.log("schedule_today")
+        Diagnostics.setKey("reminder_count", appState.reminders.size)
+        Diagnostics.setKey("reminder_days_count", appState.reminderDays.size)
         val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
 
         cancelReminderAlarms(context, alarmManager)
@@ -42,7 +46,9 @@ object NotificationScheduler {
         )
 
         val now = LocalDateTime.now()
-        dayPlan.filter { it.triggerAt.isAfter(now.plusMinutes(1)) }
+        val upcomingPlans = dayPlan.filter { it.triggerAt.isAfter(now.plusMinutes(1)) }
+        Diagnostics.setKey("scheduled_alarm_count", upcomingPlans.size)
+        upcomingPlans
             .forEachIndexed { index, plan ->
                 val intent = Intent(context, NotificationReceiver::class.java)
                     .setAction(NotificationReceiver.ACTION_SHOW_REMINDER)

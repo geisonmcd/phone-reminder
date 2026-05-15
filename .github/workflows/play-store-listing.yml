@@ -2,6 +2,11 @@ name: Play Store Listing
 
 on:
   workflow_dispatch:
+    inputs:
+      versionCode:
+        description: Play Store versionCode for the release that should receive listing metadata.
+        required: true
+        type: string
 
 permissions:
   contents: read
@@ -51,7 +56,7 @@ jobs:
             --package_name com.geison.smartrandomreminder \
             --metadata_path "$RUNNER_TEMP/metadata" \
             --track alpha \
-            --version_code 10 \
+            --version_code "${{ inputs.versionCode }}" \
             --skip_upload_apk true \
             --skip_upload_aab true \
             --skip_upload_changelogs true

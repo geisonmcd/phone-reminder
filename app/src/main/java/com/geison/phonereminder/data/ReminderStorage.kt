@@ -1,6 +1,7 @@
 package com.geison.phonereminder.data
 
 import android.content.Context
+import com.geison.phonereminder.diagnostics.Diagnostics
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
@@ -27,7 +28,16 @@ object ReminderStorage {
         return runCatching {
             val migrated = migrateLegacyState(json.parseToJsonElement(raw))
             json.decodeFromJsonElement<AppState>(migrated)
-        }.getOrDefault(AppState())
+        }.getOrElse { error ->
+            Diagnostics.recordNonFatal(
+                area = "storage_load_failed",
+                throwable = error,
+                keys = mapOf(
+                    "raw_length" to raw.length.toString(),
+                ),
+            )
+            AppState()
+        }
     }
 
     fun save(context: Context, state: AppState) {

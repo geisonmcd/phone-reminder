@@ -16,6 +16,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.core.content.ContextCompat
+import com.geison.phonereminder.diagnostics.Diagnostics
 import com.geison.phonereminder.notifications.NotificationChannels
 import com.geison.phonereminder.notifications.NotificationScheduler
 import com.geison.phonereminder.ui.ReminderApp
@@ -29,6 +30,8 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         pendingOpenReminderId = intent.getStringExtra(EXTRA_OPEN_REMINDER_ID)
+        Diagnostics.log("main_activity_on_create")
+        Diagnostics.setKey("opened_from_notification", pendingOpenReminderId != null)
         enableEdgeToEdge()
         NotificationChannels.ensureCreated(this)
         NotificationScheduler.scheduleToday(this)
@@ -37,6 +40,7 @@ class MainActivity : ComponentActivity() {
             val requestPermissionLauncher = rememberLauncherForActivityResult(
                 contract = ActivityResultContracts.RequestPermission(),
             ) { granted ->
+                Diagnostics.setKey("notifications_permission_granted", granted)
                 if (granted) {
                     viewModel.rescheduleNow()
                 }
@@ -68,6 +72,8 @@ class MainActivity : ComponentActivity() {
         super.onNewIntent(intent)
         setIntent(intent)
         pendingOpenReminderId = intent.getStringExtra(EXTRA_OPEN_REMINDER_ID)
+        Diagnostics.log("main_activity_on_new_intent")
+        Diagnostics.setKey("opened_from_notification", pendingOpenReminderId != null)
     }
 
     companion object {

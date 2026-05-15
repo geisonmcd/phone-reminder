@@ -11,6 +11,7 @@ import com.geison.phonereminder.data.ReminderExchange
 import com.geison.phonereminder.data.ReminderItem
 import com.geison.phonereminder.data.ReminderRepository
 import com.geison.phonereminder.data.ScheduleSettings
+import com.geison.phonereminder.diagnostics.Diagnostics
 import com.geison.phonereminder.notifications.NotificationScheduler
 import com.geison.phonereminder.notifications.ReminderNotifier
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -27,6 +28,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun addReminder(text: String): String? {
         val reminderId = repository.addReminder(text)
         if (reminderId != null) {
+            Diagnostics.setKey("reminder_count", state.value.reminders.size)
             NotificationScheduler.scheduleToday(getApplication())
         }
         return reminderId
@@ -57,6 +59,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             createdAtEpochMillis = createdAtEpochMillis,
         )
         if (reminderId != null) {
+            Diagnostics.setKey("reminder_count", state.value.reminders.size)
             NotificationScheduler.scheduleToday(getApplication())
         }
         return reminderId
@@ -64,6 +67,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun deleteReminder(id: String) {
         repository.deleteReminder(id)
+        Diagnostics.setKey("reminder_count", state.value.reminders.size)
         NotificationScheduler.scheduleToday(getApplication())
     }
 
@@ -158,12 +162,14 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun exportReminders(uri: Uri): String {
         val content = ReminderExchange.export(state.value)
         return runCatching {
+            Diagnostics.log("export_reminders")
             getApplication<Application>().contentResolver.openOutputStream(uri)?.bufferedWriter()?.use { writer ->
                 writer.write(content)
             } ?: error(getApplication<Application>().getString(R.string.message_file_open_failed))
         }.fold(
             onSuccess = {
                 val count = state.value.reminders.size
+                Diagnostics.setKey("last_export_reminder_count", count)
                 getApplication<Application>().resources.getQuantityString(
                     R.plurals.message_exported_reminders,
                     count,
@@ -171,6 +177,13 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 )
             },
             onFailure = { error ->
+                Diagnostics.recordNonFatal(
+                    area = "export_failed",
+                    throwable = error,
+                    keys = mapOf(
+                        "reminder_count" to state.value.reminders.size.toString(),
+                    ),
+                )
                 getApplication<Application>().getString(
                     R.string.message_export_failed,
                     error.message ?: getApplication<Application>().getString(R.string.message_unknown_error),
@@ -181,12 +194,15 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun importReminders(uri: Uri): String {
         return runCatching {
+            Diagnostics.log("import_reminders")
             val content = getApplication<Application>().contentResolver.openInputStream(uri)?.bufferedReader()?.use { reader ->
                 reader.readText()
             } ?: error(getApplication<Application>().getString(R.string.message_file_open_failed))
 
             val importedState = ReminderExchange.import(content)
             repository.replaceState(importedState)
+            Diagnostics.setKey("reminder_count", importedState.reminders.size)
+            Diagnostics.setKey("last_import_reminder_count", importedState.reminders.size)
             NotificationScheduler.scheduleToday(getApplication())
 
             val count = importedState.reminders.size
@@ -196,6 +212,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 count,
             )
         }.getOrElse { error ->
+            Diagnostics.recordNonFatal(
+                area = "import_failed",
+                throwable = error,
+            )
             getApplication<Application>().getString(
                 R.string.message_import_failed,
                 error.message ?: getApplication<Application>().getString(R.string.message_unknown_error),

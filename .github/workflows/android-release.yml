@@ -41,6 +41,16 @@ jobs:
         env:
           PLAY_SERVICE_ACCOUNT_JSON: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
 
+      - name: Write Firebase Crashlytics config
+        run: |
+          if [ -f app/google-services.json ]; then
+            exit 0
+          fi
+          test -n "$FIREBASE_GOOGLE_SERVICES_JSON"
+          printf '%s' "$FIREBASE_GOOGLE_SERVICES_JSON" > app/google-services.json
+        env:
+          FIREBASE_GOOGLE_SERVICES_JSON: ${{ secrets.FIREBASE_GOOGLE_SERVICES_JSON }}
+
       - name: Decode upload keystore
         run: |
           test -n "$RELEASE_KEYSTORE_BASE64"

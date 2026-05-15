@@ -1,8 +1,6 @@
 <resources>
     <string name="app_name">Smart Random Reminder</string>
     <string name="notification_title_reminder">Lembrete</string>
-    <string name="notification_action_see_less">Ver menos: %1$d/semana, %2$d/dia</string>
-    <string name="notification_action_see_more">Ver mais: %1$d/semana, %2$d/dia</string>
     <string name="notification_channel_reminders">Lembretes</string>
     <string name="notification_channel_reminders_description">Notificações de lembretes agendadas durante o dia.</string>
 
@@ -74,7 +72,7 @@
     <string name="privacy_notifications_title">Notificações</string>
     <string name="privacy_notifications_body">O app usa permissões de notificação e inicialização para que os lembretes apareçam e sejam reagendados após reiniciar.</string>
     <string name="privacy_sharing_title">Compartilhamento de dados</string>
-    <string name="privacy_sharing_body">O app não envia conteúdo dos lembretes nem dados pessoais para nossos servidores.</string>
+    <string name="privacy_sharing_body">O app não envia conteúdo dos lembretes para nossos servidores. Relatórios de falhas podem enviar diagnósticos técnicos ao Firebase Crashlytics.</string>
     <string name="privacy_backups_title">Backups</string>
     <string name="privacy_backups_body">As exportações são salvas apenas quando você escolhe criar um backup em arquivo de texto.</string>
     <string name="privacy_contact_title">Contato</string>

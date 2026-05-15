@@ -8,7 +8,6 @@ Features:
 - Up to 50 notifications per day for a single reminder
 - Default notification hours for the whole app
 - Weekday selection for reminder delivery
-- Notification actions to see a reminder more or less often
 - Case-insensitive reminder filtering
 - Plain-text export and import
 - Local storage on your device
@@ -23,5 +22,6 @@ Smart Random Reminder is designed for repeated prompts like:
 Privacy:
 - No account required
 - No cloud sync
-- No analytics or ads
+- No ads or behavior analytics
+- Crash reports collect technical diagnostics without reminder text
 - Reminder data stays on your device unless you export it yourself
