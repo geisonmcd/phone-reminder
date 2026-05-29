@@ -9,7 +9,7 @@ Phone Reminder - an Android app for scheduling and managing reminders.
 - Build: `./gradlew assembleDebug`
 
 ## After every commit
-- Update `CHANGELOG.md` with a dated entry summarizing the change. Keep entries concise (one line per change).
+- Update `CHANGELOG.md` with a dated one-liner (e.g. `- 2025-05-29 — Fixed X by doing Y.`).
 
 ## Code Conventions
 - Kotlin for Android development
