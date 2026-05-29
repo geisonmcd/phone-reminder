@@ -86,6 +86,7 @@
     <string name="dialog_import_replace_title">Substituir lembretes?</string>
     <string name="dialog_import_replace_body">Esta importação vai substituir %1$d lembretes atuais por %2$d lembretes do arquivo.</string>
     <string name="label_reminder_text">Texto do lembrete</string>
+    <string name="reminder_text_required">O texto do lembrete é obrigatório.</string>
     <string name="label_reminder">Lembrete</string>
     <string name="example_reminder">Exemplo: Proteja sua atenção.</string>
     <string name="notification_length_count">%1$d/%2$d caracteres antes do aviso de tamanho da notificação</string>

@@ -84,6 +84,7 @@
     <string name="dialog_import_replace_title">Replace reminders?</string>
     <string name="dialog_import_replace_body">This import will replace %1$d current reminders with %2$d reminders from the file.</string>
     <string name="label_reminder_text">Reminder text</string>
+    <string name="reminder_text_required">Reminder text is required.</string>
     <string name="label_reminder">Reminder</string>
     <string name="example_reminder">Example: Protect your attention.</string>
     <string name="notification_length_count">%1$d/%2$d characters before notification-length warning</string>

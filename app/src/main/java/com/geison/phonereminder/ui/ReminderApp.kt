@@ -690,7 +690,11 @@ private fun ReminderEditScreen(
         },
         floatingActionButton = {
             FloatingActionButton(
-                onClick = { onSave(text, notificationsPerWeek, notificationsPerDay) },
+                onClick = {
+                    if (text.isNotBlank()) {
+                        onSave(text, notificationsPerWeek, notificationsPerDay)
+                    }
+                },
                 containerColor = if (text.isBlank()) {
                     MaterialTheme.colorScheme.surfaceVariant
                 } else {
@@ -726,6 +730,12 @@ private fun ReminderEditScreen(
                     colors = appTextFieldColors(),
                     supportingText = {
                         Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            if (text.isBlank()) {
+                                Text(
+                                    text = stringResource(R.string.reminder_text_required),
+                                    color = MaterialTheme.colorScheme.error,
+                                )
+                            }
                             Text(stringResource(R.string.example_reminder))
                             Text(
                                 text = stringResource(
