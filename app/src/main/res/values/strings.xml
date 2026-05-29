@@ -39,6 +39,7 @@
     <string name="action_export_txt">Export to txt</string>
     <string name="action_import_txt">Import from txt</string>
     <string name="action_open_privacy_policy">Open privacy policy</string>
+    <string name="action_replace_reminders">Replace reminders</string>
 
     <string name="empty_no_reminders_title">No reminders yet</string>
     <string name="empty_no_reminders_body">Create your first reminder.</string>
@@ -80,6 +81,8 @@
 
     <string name="dialog_delete_title">Delete reminder?</string>
     <string name="dialog_delete_body">This reminder will be removed permanently.</string>
+    <string name="dialog_import_replace_title">Replace reminders?</string>
+    <string name="dialog_import_replace_body">This import will replace %1$d current reminders with %2$d reminders from the file.</string>
     <string name="label_reminder_text">Reminder text</string>
     <string name="label_reminder">Reminder</string>
     <string name="example_reminder">Example: Protect your attention.</string>

@@ -6,6 +6,7 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import com.geison.phonereminder.R
+import com.geison.phonereminder.data.AppState
 import com.geison.phonereminder.data.MAX_NOTIFICATIONS_PER_DAY
 import com.geison.phonereminder.data.ReminderExchange
 import com.geison.phonereminder.data.ReminderItem
@@ -192,35 +193,43 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         )
     }
 
-    fun importReminders(uri: Uri): String {
+    fun previewImport(uri: Uri): ImportPreviewResult {
         return runCatching {
             Diagnostics.log("import_reminders")
             val content = getApplication<Application>().contentResolver.openInputStream(uri)?.bufferedReader()?.use { reader ->
                 reader.readText()
             } ?: error(getApplication<Application>().getString(R.string.message_file_open_failed))
 
-            val importedState = ReminderExchange.import(content)
-            repository.replaceState(importedState)
-            Diagnostics.setKey("reminder_count", importedState.reminders.size)
-            Diagnostics.setKey("last_import_reminder_count", importedState.reminders.size)
-            NotificationScheduler.scheduleToday(getApplication())
-
-            val count = importedState.reminders.size
-            getApplication<Application>().resources.getQuantityString(
-                R.plurals.message_imported_reminders,
-                count,
-                count,
+            ImportPreviewResult.Ready(
+                importedState = ReminderExchange.import(content),
+                currentReminderCount = state.value.reminders.size,
             )
         }.getOrElse { error ->
             Diagnostics.recordNonFatal(
                 area = "import_failed",
                 throwable = error,
             )
-            getApplication<Application>().getString(
-                R.string.message_import_failed,
-                error.message ?: getApplication<Application>().getString(R.string.message_unknown_error),
+            ImportPreviewResult.Error(
+                message = getApplication<Application>().getString(
+                    R.string.message_import_failed,
+                    error.message ?: getApplication<Application>().getString(R.string.message_unknown_error),
+                ),
             )
         }
+    }
+
+    fun importReminders(importedState: AppState): String {
+        repository.replaceState(importedState)
+        Diagnostics.setKey("reminder_count", importedState.reminders.size)
+        Diagnostics.setKey("last_import_reminder_count", importedState.reminders.size)
+        NotificationScheduler.scheduleToday(getApplication())
+
+        val count = importedState.reminders.size
+        return getApplication<Application>().resources.getQuantityString(
+            R.plurals.message_imported_reminders,
+            count,
+            count,
+        )
     }
 
     private fun snapWeeklyCount(
@@ -248,4 +257,15 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             }
         }
     }
+}
+
+sealed interface ImportPreviewResult {
+    data class Ready(
+        val importedState: AppState,
+        val currentReminderCount: Int,
+    ) : ImportPreviewResult
+
+    data class Error(
+        val message: String,
+    ) : ImportPreviewResult
 }

@@ -4,6 +4,8 @@ import java.time.DayOfWeek
 import java.util.UUID
 
 object ReminderExchange {
+    // Export v1 is a compatibility contract. Keep imports tolerant of this shape
+    // and add only optional fields so old backups continue to restore.
     private const val header = "Smart Random Reminder Export v1"
     private const val legacyHeader = "Phone Reminder Export v1"
     private const val separator = "---"
@@ -14,6 +16,8 @@ object ReminderExchange {
     private const val reminderDaysLabel = "Reminder days: "
     private const val notificationsLabel = "Notifications per week: "
     private const val notificationsPerDayLabel = "Notifications per day: "
+    private const val legacyReminderStartHourLabel = "Start hour: "
+    private const val legacyReminderEndHourLabel = "End hour: "
 
     fun export(state: AppState): String {
         val lines = mutableListOf(
@@ -122,18 +126,13 @@ object ReminderExchange {
             }
             val notificationsPerWeek = snapWeeklyCount(rawNotificationsPerWeek, notificationsPerDay)
 
-            if (cursor.peekLine()?.startsWith("Start hour: ") == true) {
-                defaultStartHour = defaultStartHour ?: cursor.readNumber(
-                    prefix = "Start hour: ",
-                    errorLabel = "Start hour",
-                ).coerceIn(0, 22)
-            }
-            if (cursor.peekLine()?.startsWith("End hour: ") == true) {
-                defaultEndHour = defaultEndHour ?: cursor.readNumber(
-                    prefix = "End hour: ",
-                    errorLabel = "End hour",
-                ).coerceIn(1, 23)
-            }
+            val importedDefaults = readOptionalReminderMetadata(
+                cursor = cursor,
+                defaultStartHour = defaultStartHour,
+                defaultEndHour = defaultEndHour,
+            )
+            defaultStartHour = importedDefaults.startHour
+            defaultEndHour = importedDefaults.endHour
 
             reminders += ReminderItem(
                 id = UUID.randomUUID().toString(),
@@ -216,4 +215,50 @@ object ReminderExchange {
                 ?: throw IllegalArgumentException("$errorLabel must be a number.")
         }
     }
+
+    private fun readOptionalReminderMetadata(
+        cursor: LineCursor,
+        defaultStartHour: Int?,
+        defaultEndHour: Int?,
+    ): ImportedDefaults {
+        var startHour = defaultStartHour
+        var endHour = defaultEndHour
+
+        while (true) {
+            val line = cursor.peekLine()?.trimEnd() ?: break
+            if (line.isBlank() || line == separator) {
+                break
+            }
+
+            when {
+                line.startsWith(legacyReminderStartHourLabel) -> {
+                    val importedStartHour = cursor.readNumber(
+                        prefix = legacyReminderStartHourLabel,
+                        errorLabel = "Start hour",
+                    ).coerceIn(0, 22)
+                    startHour = startHour ?: importedStartHour
+                }
+
+                line.startsWith(legacyReminderEndHourLabel) -> {
+                    val importedEndHour = cursor.readNumber(
+                        prefix = legacyReminderEndHourLabel,
+                        errorLabel = "End hour",
+                    ).coerceIn(1, 23)
+                    endHour = endHour ?: importedEndHour
+                }
+
+                else -> cursor.readLine()
+            }
+        }
+
+        return ImportedDefaults(
+            startHour = startHour,
+            endHour = endHour,
+        )
+    }
+
+    private data class ImportedDefaults(
+        val startHour: Int?,
+        val endHour: Int?,
+    )
 }

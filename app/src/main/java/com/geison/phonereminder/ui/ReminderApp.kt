@@ -52,6 +52,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -65,6 +66,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.platform.LocalContext
+import com.geison.phonereminder.ImportPreviewResult
 import com.geison.phonereminder.MainViewModel
 import com.geison.phonereminder.R
 import com.geison.phonereminder.data.MAX_NOTIFICATIONS_PER_DAY
@@ -127,6 +129,7 @@ fun ReminderApp(
     var showingConfig by rememberSaveable { mutableStateOf(false) }
     var showingPrivacyPolicy by rememberSaveable { mutableStateOf(false) }
     var configMessage by rememberSaveable { mutableStateOf<String?>(null) }
+    var pendingImport by remember { mutableStateOf<ImportPreviewResult.Ready?>(null) }
     val context = LocalContext.current
 
     val exportLauncher = rememberLauncherForActivityResult(
@@ -142,10 +145,20 @@ fun ReminderApp(
     val importLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenDocument(),
     ) { uri ->
-        configMessage = if (uri == null) {
-            context.getString(R.string.message_import_canceled)
+        if (uri == null) {
+            pendingImport = null
+            configMessage = context.getString(R.string.message_import_canceled)
         } else {
-            viewModel.importReminders(uri)
+            when (val preview = viewModel.previewImport(uri)) {
+                is ImportPreviewResult.Ready -> {
+                    configMessage = null
+                    pendingImport = preview
+                }
+                is ImportPreviewResult.Error -> {
+                    pendingImport = null
+                    configMessage = preview.message
+                }
+            }
         }
     }
 
@@ -291,6 +304,37 @@ fun ReminderApp(
                         onEdit = { reminderId -> selectedReminderId = reminderId },
                     )
                 }
+            }
+
+            pendingImport?.let { importPreview ->
+                AlertDialog(
+                    onDismissRequest = { pendingImport = null },
+                    title = { Text(stringResource(R.string.dialog_import_replace_title)) },
+                    text = {
+                        Text(
+                            stringResource(
+                                R.string.dialog_import_replace_body,
+                                importPreview.currentReminderCount,
+                                importPreview.importedState.reminders.size,
+                            ),
+                        )
+                    },
+                    confirmButton = {
+                        TextButton(
+                            onClick = {
+                                configMessage = viewModel.importReminders(importPreview.importedState)
+                                pendingImport = null
+                            },
+                        ) {
+                            Text(stringResource(R.string.action_replace_reminders))
+                        }
+                    },
+                    dismissButton = {
+                        TextButton(onClick = { pendingImport = null }) {
+                            Text(stringResource(R.string.action_cancel))
+                        }
+                    },
+                )
             }
         }
     }

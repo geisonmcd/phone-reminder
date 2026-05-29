@@ -7,6 +7,66 @@ import java.time.DayOfWeek
 
 class ReminderExchangeTest {
     @Test
+    fun exportFormatV1IsStableContract() {
+        val exported = ReminderExchange.export(
+            AppState(
+                reminderDays = setOf(DayOfWeek.TUESDAY, DayOfWeek.MONDAY),
+                notificationWindow = NotificationWindowSettings(
+                    startHour = 8,
+                    endHour = 21,
+                ),
+                reminders = listOf(
+                    ReminderItem(
+                        id = "ignored-id",
+                        text = "First reminder",
+                        schedule = ScheduleSettings(
+                            notificationsPerWeek = 3,
+                            notificationsPerDay = 1,
+                        ),
+                    ),
+                    ReminderItem(
+                        id = "ignored-id-too",
+                        text = "Second reminder\nwith two lines",
+                        schedule = ScheduleSettings(
+                            notificationsPerWeek = 6,
+                            notificationsPerDay = 2,
+                        ),
+                    ),
+                ),
+            ),
+        )
+
+        assertEquals(
+            """
+            Smart Random Reminder Export v1
+
+            This file can be imported back into Smart Random Reminder.
+            Keep each block in the same format when editing by hand.
+
+            Default start hour: 8
+            Default end hour: 21
+            Reminder days: MONDAY,TUESDAY
+
+            ---
+            Reminder:
+            First reminder
+            End reminder
+            Notifications per week: 3
+            Notifications per day: 1
+
+            ---
+            Reminder:
+            Second reminder
+            with two lines
+            End reminder
+            Notifications per week: 6
+            Notifications per day: 2
+            """.trimIndent() + "\n",
+            exported,
+        )
+    }
+
+    @Test
     fun exportAndImportRoundTripPreservesReminderContent() {
         val exported = ReminderExchange.export(
             AppState(
@@ -121,5 +181,43 @@ class ReminderExchangeTest {
         assertEquals("Remain in me and I'll remain in you", imported.reminders.single().text)
         assertEquals(1, imported.reminders.single().schedule.notificationsPerWeek)
         assertEquals(1, imported.reminders.single().schedule.notificationsPerDay)
+    }
+
+    @Test
+    fun importIgnoresFutureOptionalReminderMetadata() {
+        val imported = ReminderExchange.import(
+            """
+            Smart Random Reminder Export v1
+
+            Default start hour: 9
+            Default end hour: 20
+            Reminder days: MONDAY
+
+            ---
+            Reminder:
+            First reminder
+            End reminder
+            Notifications per week: 2
+            Notifications per day: 1
+            Created at: 123456789
+            Color: blue
+
+            ---
+            Reminder:
+            Second reminder
+            End reminder
+            Notifications per week: 4
+            Notifications per day: 2
+            Stable id: future-id
+            """.trimIndent(),
+        )
+
+        assertEquals(2, imported.reminders.size)
+        assertEquals("First reminder", imported.reminders[0].text)
+        assertEquals(2, imported.reminders[0].schedule.notificationsPerWeek)
+        assertEquals(1, imported.reminders[0].schedule.notificationsPerDay)
+        assertEquals("Second reminder", imported.reminders[1].text)
+        assertEquals(4, imported.reminders[1].schedule.notificationsPerWeek)
+        assertEquals(2, imported.reminders[1].schedule.notificationsPerDay)
     }
 }

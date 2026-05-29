@@ -11,11 +11,13 @@
     <string name="message_import_failed">Falha ao importar: %1$s</string>
     <string name="message_unknown_error">Erro desconhecido.</string>
     <plurals name="message_exported_reminders">
-        <item quantity="one">1 lembrete exportado.</item>
+        <item quantity="one">%1$d lembrete exportado.</item>
+        <item quantity="many">%1$d lembretes exportados.</item>
         <item quantity="other">%1$d lembretes exportados.</item>
     </plurals>
     <plurals name="message_imported_reminders">
-        <item quantity="one">1 lembrete importado.</item>
+        <item quantity="one">%1$d lembrete importado.</item>
+        <item quantity="many">%1$d lembretes importados.</item>
         <item quantity="other">%1$d lembretes importados.</item>
     </plurals>
 
@@ -39,6 +41,7 @@
     <string name="action_export_txt">Exportar para txt</string>
     <string name="action_import_txt">Importar de txt</string>
     <string name="action_open_privacy_policy">Abrir política de privacidade</string>
+    <string name="action_replace_reminders">Substituir lembretes</string>
 
     <string name="empty_no_reminders_title">Nenhum lembrete ainda</string>
     <string name="empty_no_reminders_body">Crie seu primeiro lembrete.</string>
@@ -80,6 +83,8 @@
 
     <string name="dialog_delete_title">Excluir lembrete?</string>
     <string name="dialog_delete_body">Este lembrete será removido permanentemente.</string>
+    <string name="dialog_import_replace_title">Substituir lembretes?</string>
+    <string name="dialog_import_replace_body">Esta importação vai substituir %1$d lembretes atuais por %2$d lembretes do arquivo.</string>
     <string name="label_reminder_text">Texto do lembrete</string>
     <string name="label_reminder">Lembrete</string>
     <string name="example_reminder">Exemplo: Proteja sua atenção.</string>
