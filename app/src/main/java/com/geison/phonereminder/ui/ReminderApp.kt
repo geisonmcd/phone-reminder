@@ -1,5 +1,7 @@
 package com.geison.phonereminder.ui
 
+import android.content.Intent
+import android.provider.Settings
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -64,6 +66,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.core.app.NotificationManagerCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.platform.LocalContext
 import com.geison.phonereminder.ImportPreviewResult
@@ -214,6 +217,8 @@ fun ReminderApp(
                     ReminderEditScreen(
                         reminder = selectedReminder,
                         isNewReminder = isCreatingNewReminder,
+                        notificationWindow = state.notificationWindow,
+                        reminderDays = state.reminderDays,
                         onBack = { selectedReminderId = null },
                         onSave = { text, notificationsPerWeek, notificationsPerDay ->
                             if (isCreatingNewReminder) {
@@ -254,6 +259,7 @@ fun ReminderApp(
                     ConfigScreen(
                         notificationWindow = state.notificationWindow,
                         reminderDays = state.reminderDays,
+                        notificationsEnabled = NotificationManagerCompat.from(context).areNotificationsEnabled(),
                         message = configMessage,
                         onBack = { showingConfig = false },
                         onStartHourChange = { startHour ->
@@ -278,6 +284,12 @@ fun ReminderApp(
                         onPrivacyPolicy = {
                             showingConfig = false
                             showingPrivacyPolicy = true
+                        },
+                        onOpenNotificationSettings = {
+                            val intent = Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).apply {
+                                putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName)
+                            }
+                            context.startActivity(intent)
                         },
                     )
                 } else if (showingPrivacyPolicy) {
@@ -421,6 +433,7 @@ private fun HomeScreen(
 private fun ConfigScreen(
     notificationWindow: NotificationWindowSettings,
     reminderDays: Set<DayOfWeek>,
+    notificationsEnabled: Boolean,
     message: String?,
     onBack: () -> Unit,
     onStartHourChange: (Int) -> Unit,
@@ -429,6 +442,7 @@ private fun ConfigScreen(
     onExport: () -> Unit,
     onImport: () -> Unit,
     onPrivacyPolicy: () -> Unit,
+    onOpenNotificationSettings: () -> Unit,
 ) {
     AppScaffold(
         title = stringResource(R.string.screen_title_config),
@@ -494,6 +508,39 @@ private fun ConfigScreen(
                 reminderDays = reminderDays,
                 onReminderDayChange = onReminderDayChange,
             )
+        }
+
+        item {
+            AppCard(containerColor = if (notificationsEnabled) PrimaryCardColor else MutedCardColor) {
+                Text(
+                    text = stringResource(R.string.config_notifications_title),
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold,
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = if (notificationsEnabled) {
+                        stringResource(R.string.config_notifications_enabled)
+                    } else {
+                        stringResource(R.string.config_notifications_disabled)
+                    },
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                if (!notificationsEnabled) {
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Button(
+                        onClick = onOpenNotificationSettings,
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.primary,
+                            contentColor = MaterialTheme.colorScheme.onPrimary,
+                        ),
+                    ) {
+                        Text(stringResource(R.string.action_open_notification_settings))
+                    }
+                }
+            }
         }
 
         item {
@@ -635,6 +682,8 @@ private fun PrivacyPolicyScreen(
 private fun ReminderEditScreen(
     reminder: ReminderItem,
     isNewReminder: Boolean,
+    notificationWindow: NotificationWindowSettings,
+    reminderDays: Set<DayOfWeek>,
     onBack: () -> Unit,
     onSave: (String, Int, Int) -> Unit,
     onDelete: () -> Unit,
@@ -800,6 +849,21 @@ private fun ReminderEditScreen(
                         notificationsPerDay = updatedPerDay
                         notificationsPerWeek = snapWeeklyCount(notificationsPerWeek, updatedPerDay)
                     },
+                )
+                HorizontalDivider(
+                    modifier = Modifier.padding(vertical = 8.dp),
+                    color = MaterialTheme.colorScheme.outline.copy(alpha = 0.35f),
+                )
+                Text(
+                    text = schedulePreview(
+                        notificationsPerWeek = notificationsPerWeek,
+                        notificationsPerDay = notificationsPerDay,
+                        startHour = notificationWindow.startHour,
+                        endHour = notificationWindow.endHour,
+                        reminderDays = reminderDays,
+                    ),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
         }
@@ -1334,6 +1398,29 @@ private fun scheduleSummary(reminder: ReminderItem): String {
         R.string.schedule_summary,
         reminder.schedule.notificationsPerWeek,
         reminder.schedule.notificationsPerDay,
+    )
+}
+
+@Composable
+private fun schedulePreview(
+    notificationsPerWeek: Int,
+    notificationsPerDay: Int,
+    startHour: Int,
+    endHour: Int,
+    reminderDays: Set<DayOfWeek>,
+): String {
+    val daysText = if (reminderDays.size == 7) {
+        stringResource(R.string.schedule_summary_all_days)
+    } else {
+        reminderDayOptions().filter { it.dayOfWeek in reminderDays }.joinToString(", ") { it.label }
+    }
+    return stringResource(
+        R.string.schedule_summary_full,
+        notificationsPerWeek,
+        notificationsPerDay,
+        hourLabel(startHour),
+        hourLabel(endHour),
+        daysText,
     )
 }
 

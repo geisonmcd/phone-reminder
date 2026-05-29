@@ -101,6 +101,16 @@
     <string name="saved_reminders_title">Lembretes salvos</string>
     <string name="filter_reminders_label">Filtrar lembretes</string>
     <string name="schedule_summary">%1$d/semana, %2$d/dia</string>
+    <string name="schedule_summary_full">%1$d lembretes/semana, máx %2$d/dia, entre %3$s e %4$s %5$s.</string>
+    <string name="schedule_summary_all_days">todos os dias</string>
+    <string name="notification_rationale_title">Permitir notificações?</string>
+    <string name="notification_rationale_body">As notificações permitem que os lembretes apareçam na hora certa durante o dia. Sem elas, os lembretes não serão exibidos.</string>
+    <string name="action_grant_permission">Permitir</string>
+    <string name="action_skip">Pular</string>
+    <string name="config_notifications_title">Permissão de notificação</string>
+    <string name="config_notifications_enabled">Notificações estão ativadas.</string>
+    <string name="config_notifications_disabled">Notificações estão desativadas. Os lembretes não serão exibidos.</string>
+    <string name="action_open_notification_settings">Abrir configurações de notificação</string>
     <string name="reminder_count_one">1 lembrete</string>
     <string name="reminder_count_many">%1$d lembretes</string>
     <string name="reminder_count_filtered">%1$d/%2$d exibidos</string>

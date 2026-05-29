@@ -33,11 +33,13 @@ Phone Reminder - an Android app for scheduling and managing reminders.
 - ~~Disable the FAB or show an inline "Reminder text required" message when text is empty.~~
 - FAB click is now a no-op when text is blank; inline "Reminder text is required." message appears below the text field.
 
-### 4. Improve notification permission UX
-- `app/src/main/java/com/geison/phonereminder/MainActivity.kt:49` asks for notification permission immediately.
-- Show a short in-app rationale first, then request.
-- Add a "notifications disabled" indicator in settings with a button to open system settings.
+### 4. Improve notification permission UX **✓ DONE (2025-05-29)**
+- ~~`app/src/main/java/com/geison/phonereminder/MainActivity.kt:49` asks for notification permission immediately.~~
+- ~~Show a short in-app rationale first, then request.~~
+- ~~Add a "notifications disabled" indicator in settings with a button to open system settings.~~
+- Rationale dialog appears before requesting permission; config screen shows notification status with system-settings button when disabled.
 
-### 5. Better scheduling preview
-- The week/day steppers work but the result is not obvious to users.
-- Add a preview summary like: "3 reminders/week, max 1/day, between 9:00 and 20:00 on selected days."
+### 5. Better scheduling preview **✓ DONE (2025-05-29)**
+- ~~The week/day steppers work but the result is not obvious to users.~~
+- ~~Add a preview summary like: "3 reminders/week, max 1/day, between 9:00 and 20:00 on selected days."~~
+- Preview summary now appears below the schedule steppers in each reminder edit screen.

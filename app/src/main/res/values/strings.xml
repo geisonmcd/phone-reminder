@@ -99,6 +99,16 @@
     <string name="saved_reminders_title">Saved reminders</string>
     <string name="filter_reminders_label">Filter reminders</string>
     <string name="schedule_summary">%1$d/week, %2$d/day</string>
+    <string name="schedule_summary_full">%1$d reminders/week, max %2$d/day, between %3$s and %4$s on %5$s.</string>
+    <string name="schedule_summary_all_days">all days</string>
+    <string name="notification_rationale_title">Allow notifications?</string>
+    <string name="notification_rationale_body">Notifications let reminders appear on time during the day. Without them, reminders won\'t show up.</string>
+    <string name="action_grant_permission">Allow</string>
+    <string name="action_skip">Skip</string>
+    <string name="config_notifications_title">Notification permission</string>
+    <string name="config_notifications_enabled">Notifications are enabled.</string>
+    <string name="config_notifications_disabled">Notifications are disabled. Reminders will not appear.</string>
+    <string name="action_open_notification_settings">Open notification settings</string>
     <string name="reminder_count_one">1 reminder</string>
     <string name="reminder_count_many">%1$d reminders</string>
     <string name="reminder_count_filtered">%1$d/%2$d shown</string>
