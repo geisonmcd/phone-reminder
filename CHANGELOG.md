@@ -1,5 +1,5 @@
 # Changelog
 
-## 2025-05-29 — Initial tracking
+## 2025-05-29
 
-- **Empty-save validation**: Disabled save FAB click when text is blank; added inline "Reminder text is required." error message below the text field.
+- Disabled save FAB when text is blank; added inline "Reminder text is required." validation message.
