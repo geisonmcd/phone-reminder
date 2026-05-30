@@ -20,6 +20,11 @@
         <item quantity="many">%1$d lembretes importados.</item>
         <item quantity="other">%1$d lembretes importados.</item>
     </plurals>
+    <plurals name="message_merged_reminders">
+        <item quantity="one">%1$d lembrete mesclado.</item>
+        <item quantity="many">%1$d lembretes mesclados.</item>
+        <item quantity="other">%1$d lembretes mesclados.</item>
+    </plurals>
 
     <string name="file_name_export">phone-reminder-export.txt</string>
     <string name="screen_title_home">Smart Random Reminder</string>
@@ -41,6 +46,7 @@
     <string name="action_export_txt">Exportar para txt</string>
     <string name="action_import_txt">Importar de txt</string>
     <string name="action_open_privacy_policy">Abrir política de privacidade</string>
+    <string name="action_merge_reminders">Mesclar lembretes</string>
     <string name="action_replace_reminders">Substituir lembretes</string>
 
     <string name="empty_no_reminders_title">Nenhum lembrete ainda</string>
@@ -65,7 +71,7 @@
     <string name="config_export_title">Exportar lembretes</string>
     <string name="config_export_body">Salve em um arquivo de texto.</string>
     <string name="config_import_title">Importar lembretes</string>
-    <string name="config_import_body">Substitua a lista a partir de um arquivo de texto.</string>
+    <string name="config_import_body">Mescle ou substitua a partir de um arquivo de texto.</string>
     <string name="config_privacy_title">Política de privacidade</string>
     <string name="config_privacy_body">Leia como seus dados de lembretes são tratados.</string>
 
@@ -83,8 +89,8 @@
 
     <string name="dialog_delete_title">Excluir lembrete?</string>
     <string name="dialog_delete_body">Este lembrete será removido permanentemente.</string>
-    <string name="dialog_import_replace_title">Substituir lembretes?</string>
-    <string name="dialog_import_replace_body">Esta importação vai substituir %1$d lembretes atuais por %2$d lembretes do arquivo.</string>
+    <string name="dialog_import_replace_title">Importar lembretes?</string>
+    <string name="dialog_import_replace_body">Este arquivo tem %2$d lembretes. Mescle com os %1$d lembretes atuais ou substitua a lista atual.</string>
     <string name="label_reminder_text">Texto do lembrete</string>
     <string name="reminder_text_required">O texto do lembrete é obrigatório.</string>
     <string name="label_reminder">Lembrete</string>

@@ -9,6 +9,7 @@ import com.geison.phonereminder.R
 import com.geison.phonereminder.data.AppState
 import com.geison.phonereminder.data.MAX_NOTIFICATIONS_PER_DAY
 import com.geison.phonereminder.data.ReminderExchange
+import com.geison.phonereminder.data.ReminderImportMerge
 import com.geison.phonereminder.data.ReminderItem
 import com.geison.phonereminder.data.ReminderRepository
 import com.geison.phonereminder.data.ScheduleSettings
@@ -220,9 +221,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun importReminders(importedState: AppState): String {
         repository.replaceState(importedState)
-        Diagnostics.setKey("reminder_count", importedState.reminders.size)
-        Diagnostics.setKey("last_import_reminder_count", importedState.reminders.size)
-        NotificationScheduler.scheduleToday(getApplication())
+        recordImportSuccess(
+            mode = "replace",
+            importedReminderCount = importedState.reminders.size,
+            totalReminderCount = importedState.reminders.size,
+        )
 
         val count = importedState.reminders.size
         return getApplication<Application>().resources.getQuantityString(
@@ -230,6 +233,37 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             count,
             count,
         )
+    }
+
+    fun mergeImportedReminders(importedState: AppState): String {
+        val mergedState = ReminderImportMerge.merge(
+            currentState = state.value,
+            importedState = importedState,
+        )
+        repository.replaceState(mergedState)
+        recordImportSuccess(
+            mode = "merge",
+            importedReminderCount = importedState.reminders.size,
+            totalReminderCount = mergedState.reminders.size,
+        )
+
+        val count = importedState.reminders.size
+        return getApplication<Application>().resources.getQuantityString(
+            R.plurals.message_merged_reminders,
+            count,
+            count,
+        )
+    }
+
+    private fun recordImportSuccess(
+        mode: String,
+        importedReminderCount: Int,
+        totalReminderCount: Int,
+    ) {
+        Diagnostics.setKey("reminder_count", totalReminderCount)
+        Diagnostics.setKey("last_import_reminder_count", importedReminderCount)
+        Diagnostics.setKey("last_import_mode", mode)
+        NotificationScheduler.scheduleToday(getApplication())
     }
 
     private fun snapWeeklyCount(

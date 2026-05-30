@@ -18,6 +18,10 @@
         <item quantity="one">Imported 1 reminder.</item>
         <item quantity="other">Imported %1$d reminders.</item>
     </plurals>
+    <plurals name="message_merged_reminders">
+        <item quantity="one">Merged 1 reminder.</item>
+        <item quantity="other">Merged %1$d reminders.</item>
+    </plurals>
 
     <string name="file_name_export">phone-reminder-export.txt</string>
     <string name="screen_title_home">Smart Random Reminder</string>
@@ -39,6 +43,7 @@
     <string name="action_export_txt">Export to txt</string>
     <string name="action_import_txt">Import from txt</string>
     <string name="action_open_privacy_policy">Open privacy policy</string>
+    <string name="action_merge_reminders">Merge reminders</string>
     <string name="action_replace_reminders">Replace reminders</string>
 
     <string name="empty_no_reminders_title">No reminders yet</string>
@@ -63,7 +68,7 @@
     <string name="config_export_title">Export reminders</string>
     <string name="config_export_body">Save to a text file.</string>
     <string name="config_import_title">Import reminders</string>
-    <string name="config_import_body">Replace the list from a text file.</string>
+    <string name="config_import_body">Merge or replace from a text file.</string>
     <string name="config_privacy_title">Privacy policy</string>
     <string name="config_privacy_body">Read how your reminder data is handled.</string>
 
@@ -81,8 +86,8 @@
 
     <string name="dialog_delete_title">Delete reminder?</string>
     <string name="dialog_delete_body">This reminder will be removed permanently.</string>
-    <string name="dialog_import_replace_title">Replace reminders?</string>
-    <string name="dialog_import_replace_body">This import will replace %1$d current reminders with %2$d reminders from the file.</string>
+    <string name="dialog_import_replace_title">Import reminders?</string>
+    <string name="dialog_import_replace_body">This file has %2$d reminders. Merge them with your %1$d current reminders or replace your current list.</string>
     <string name="label_reminder_text">Reminder text</string>
     <string name="reminder_text_required">Reminder text is required.</string>
     <string name="label_reminder">Reminder</string>

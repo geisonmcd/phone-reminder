@@ -332,13 +332,23 @@ fun ReminderApp(
                         )
                     },
                     confirmButton = {
-                        TextButton(
-                            onClick = {
-                                configMessage = viewModel.importReminders(importPreview.importedState)
-                                pendingImport = null
-                            },
-                        ) {
-                            Text(stringResource(R.string.action_replace_reminders))
+                        Column(horizontalAlignment = Alignment.End) {
+                            TextButton(
+                                onClick = {
+                                    configMessage = viewModel.mergeImportedReminders(importPreview.importedState)
+                                    pendingImport = null
+                                },
+                            ) {
+                                Text(stringResource(R.string.action_merge_reminders))
+                            }
+                            TextButton(
+                                onClick = {
+                                    configMessage = viewModel.importReminders(importPreview.importedState)
+                                    pendingImport = null
+                                },
+                            ) {
+                                Text(stringResource(R.string.action_replace_reminders))
+                            }
                         }
                     },
                     dismissButton = {

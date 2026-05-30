@@ -1,8 +1,6 @@
 package com.geison.phonereminder.notifications
 
 import android.Manifest
-import android.annotation.SuppressLint
-import android.app.Notification
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
@@ -45,13 +43,19 @@ object ReminderNotifier {
             .setPriority(NotificationCompat.PRIORITY_DEFAULT)
             .build()
 
-        if (!canPostNotifications(context)) {
+        if (
+            Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+            ContextCompat.checkSelfPermission(
+                context,
+                Manifest.permission.POST_NOTIFICATIONS,
+            ) != PackageManager.PERMISSION_GRANTED
+        ) {
             Diagnostics.log("show_reminder_notification_skipped_permission")
             return
         }
 
         runCatching {
-            postNotification(context, notificationId, notification)
+            NotificationManagerCompat.from(context).notify(notificationId, notification)
         }.onFailure { error ->
             if (error is SecurityException) {
                 Diagnostics.recordNonFatal(
@@ -64,20 +68,4 @@ object ReminderNotifier {
         }
     }
 
-    private fun canPostNotifications(context: Context): Boolean {
-        return Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
-            ContextCompat.checkSelfPermission(
-                context,
-                Manifest.permission.POST_NOTIFICATIONS,
-            ) == PackageManager.PERMISSION_GRANTED
-    }
-
-    @SuppressLint("MissingPermission")
-    private fun postNotification(
-        context: Context,
-        notificationId: Int,
-        notification: Notification,
-    ) {
-        NotificationManagerCompat.from(context).notify(notificationId, notification)
-    }
 }
