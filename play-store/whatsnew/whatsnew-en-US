@@ -1,6 +1,6 @@
-Crash diagnostics now help identify and fix production crashes while keeping reminder text private.
+Reminder setup is clearer and notification permissions are easier to manage.
 
-- Collect privacy-safe crash reports through Firebase Crashlytics
-- Remove notification frequency buttons while that flow is being fixed
-- Keep reminder text out of crash diagnostics
-- Keep reminder data stored locally on device
+- Explain notification permission before requesting it
+- Show notification status in settings with a shortcut to system settings
+- Show a schedule preview while editing reminder frequency
+- Show an inline validation message when reminder text is missing
