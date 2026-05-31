@@ -1,6 +1,5 @@
-Reminder setup is clearer and notification permissions are easier to manage.
+Importing backups is safer and notification posting is more reliable.
 
-- Explain notification permission before requesting it
-- Show notification status in settings with a shortcut to system settings
-- Show a schedule preview while editing reminder frequency
-- Show an inline validation message when reminder text is missing
+- Choose whether to merge or replace reminders when importing a backup
+- Keep current schedule settings when merging imported reminders
+- Skip notification posting cleanly when Android notification permission is denied
