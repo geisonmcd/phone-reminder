@@ -8,3 +8,4 @@
 - 2026-05-31 — Updated closed-testing release notes for safer import merging and notification permission handling.
 - 2026-05-31 — Added a GitHub Actions workflow to publish signed builds directly to Play internal testing.
 - 2026-05-31 — Documented the internal-testing deployment workflow for future agents.
+- 2026-06-01 — Restored richer notification frequency adjustment labels showing the resulting weekly and daily schedule.

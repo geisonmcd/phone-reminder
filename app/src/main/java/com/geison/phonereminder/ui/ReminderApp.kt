@@ -832,32 +832,58 @@ private fun ReminderEditScreen(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 Spacer(modifier = Modifier.height(12.dp))
+                val lowerNotificationsPerWeek = (notificationsPerWeek - notificationsPerDay)
+                    .coerceAtLeast(notificationsPerDay)
+                val higherNotificationsPerWeek = (notificationsPerWeek + notificationsPerDay)
+                    .coerceAtMost(notificationsPerDay * 7)
                 StepperRow(
                     label = stringResource(R.string.label_notifications_per_week),
                     value = notificationsPerWeek.toString(),
+                    decreaseLabel = frequencyAdjustmentLabel(
+                        prefix = "-",
+                        notificationsPerWeek = lowerNotificationsPerWeek,
+                        notificationsPerDay = notificationsPerDay,
+                    ),
+                    increaseLabel = frequencyAdjustmentLabel(
+                        prefix = "+",
+                        notificationsPerWeek = higherNotificationsPerWeek,
+                        notificationsPerDay = notificationsPerDay,
+                    ),
                     onDecrease = {
-                        notificationsPerWeek = (notificationsPerWeek - notificationsPerDay).coerceAtLeast(notificationsPerDay)
+                        notificationsPerWeek = lowerNotificationsPerWeek
                     },
                     onIncrease = {
-                        notificationsPerWeek = (notificationsPerWeek + notificationsPerDay).coerceAtMost(notificationsPerDay * 7)
+                        notificationsPerWeek = higherNotificationsPerWeek
                     },
                 )
                 HorizontalDivider(
                     modifier = Modifier.padding(vertical = 8.dp),
                     color = MaterialTheme.colorScheme.outline.copy(alpha = 0.35f),
                 )
+                val lowerNotificationsPerDay = (notificationsPerDay - 1).coerceAtLeast(1)
+                val higherNotificationsPerDay = (notificationsPerDay + 1).coerceAtMost(MAX_NOTIFICATIONS_PER_DAY)
+                val lowerDailyWeekCount = snapWeeklyCount(notificationsPerWeek, lowerNotificationsPerDay)
+                val higherDailyWeekCount = snapWeeklyCount(notificationsPerWeek, higherNotificationsPerDay)
                 StepperRow(
                     label = stringResource(R.string.label_notifications_per_day),
                     value = notificationsPerDay.toString(),
+                    decreaseLabel = frequencyAdjustmentLabel(
+                        prefix = "-",
+                        notificationsPerWeek = lowerDailyWeekCount,
+                        notificationsPerDay = lowerNotificationsPerDay,
+                    ),
+                    increaseLabel = frequencyAdjustmentLabel(
+                        prefix = "+",
+                        notificationsPerWeek = higherDailyWeekCount,
+                        notificationsPerDay = higherNotificationsPerDay,
+                    ),
                     onDecrease = {
-                        val updatedPerDay = (notificationsPerDay - 1).coerceAtLeast(1)
-                        notificationsPerDay = updatedPerDay
-                        notificationsPerWeek = snapWeeklyCount(notificationsPerWeek, updatedPerDay)
+                        notificationsPerDay = lowerNotificationsPerDay
+                        notificationsPerWeek = lowerDailyWeekCount
                     },
                     onIncrease = {
-                        val updatedPerDay = (notificationsPerDay + 1).coerceAtMost(MAX_NOTIFICATIONS_PER_DAY)
-                        notificationsPerDay = updatedPerDay
-                        notificationsPerWeek = snapWeeklyCount(notificationsPerWeek, updatedPerDay)
+                        notificationsPerDay = higherNotificationsPerDay
+                        notificationsPerWeek = higherDailyWeekCount
                     },
                 )
                 HorizontalDivider(
@@ -1191,15 +1217,56 @@ private fun CompactDivider() {
 private fun StepperRow(
     label: String,
     value: String,
+    decreaseLabel: String = "-",
+    increaseLabel: String = "+",
     onDecrease: () -> Unit,
     onIncrease: () -> Unit,
 ) {
+    val useExpandedButtons = decreaseLabel.length > 1 || increaseLabel.length > 1
+    if (useExpandedButtons) {
+        Column(modifier = Modifier.fillMaxWidth()) {
+            Text(
+                text = label,
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.Medium,
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = value,
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                SmallActionButton(
+                    label = decreaseLabel,
+                    onClick = onDecrease,
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(40.dp),
+                )
+                SmallActionButton(
+                    label = increaseLabel,
+                    onClick = onIncrease,
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(40.dp),
+                )
+            }
+        }
+        return
+    }
+
     Row(
         modifier = Modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween,
     ) {
-        Column {
+        Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = label,
                 style = MaterialTheme.typography.titleSmall,
@@ -1212,10 +1279,12 @@ private fun StepperRow(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            SmallActionButton(label = "-", onClick = onDecrease)
-            Spacer(modifier = Modifier.width(4.dp))
-            SmallActionButton(label = "+", onClick = onIncrease)
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            SmallActionButton(label = decreaseLabel, onClick = onDecrease)
+            SmallActionButton(label = increaseLabel, onClick = onIncrease)
         }
     }
 }
@@ -1224,12 +1293,17 @@ private fun StepperRow(
 private fun SmallActionButton(
     label: String,
     onClick: () -> Unit,
+    modifier: Modifier = Modifier.size(40.dp),
 ) {
     Button(
         onClick = onClick,
-        modifier = Modifier.size(40.dp),
+        modifier = modifier,
         shape = AppPillShape,
-        contentPadding = PaddingValues(0.dp),
+        contentPadding = if (label.length == 1) {
+            PaddingValues(0.dp)
+        } else {
+            PaddingValues(horizontal = 12.dp, vertical = 0.dp)
+        },
         colors = ButtonDefaults.buttonColors(
             containerColor = MaterialTheme.colorScheme.primaryContainer,
             contentColor = MaterialTheme.colorScheme.primary,
@@ -1237,8 +1311,14 @@ private fun SmallActionButton(
     ) {
         Text(
             text = label,
-            style = MaterialTheme.typography.titleMedium,
+            style = if (label.length == 1) {
+                MaterialTheme.typography.titleMedium
+            } else {
+                MaterialTheme.typography.labelMedium
+            },
             fontWeight = FontWeight.Bold,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
         )
     }
 }
@@ -1382,6 +1462,14 @@ private fun appTextFieldColors() = OutlinedTextFieldDefaults.colors(
 
 private fun hourLabel(hour: Int): String {
     return "%02d:00".format(hour)
+}
+
+private fun frequencyAdjustmentLabel(
+    prefix: String,
+    notificationsPerWeek: Int,
+    notificationsPerDay: Int,
+): String {
+    return "$prefix $notificationsPerWeek/week $notificationsPerDay/day"
 }
 
 private fun formatCreatedAt(epochMillis: Long): String {
