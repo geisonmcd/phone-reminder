@@ -9,3 +9,4 @@
 - 2026-05-31 — Added a GitHub Actions workflow to publish signed builds directly to Play internal testing.
 - 2026-05-31 — Documented the internal-testing deployment workflow for future agents.
 - 2026-06-01 — Restored richer notification frequency adjustment labels showing the resulting weekly and daily schedule.
+- 2026-06-01 — Replaced the launcher icon with a simpler phone-and-bell logo.
