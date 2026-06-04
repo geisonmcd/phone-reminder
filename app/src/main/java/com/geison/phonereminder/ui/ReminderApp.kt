@@ -133,6 +133,9 @@ fun ReminderApp(
     var showingPrivacyPolicy by rememberSaveable { mutableStateOf(false) }
     var configMessage by rememberSaveable { mutableStateOf<String?>(null) }
     var pendingImport by remember { mutableStateOf<ImportPreviewResult.Ready?>(null) }
+    var pendingGoogleDriveAction by remember { mutableStateOf<MainViewModel.GoogleDriveAction?>(null) }
+    val googleDriveMessage by viewModel.googleDriveMessage.collectAsStateWithLifecycle()
+    val googleDriveRestorePreview by viewModel.googleDriveRestorePreview.collectAsStateWithLifecycle()
     val context = LocalContext.current
 
     val exportLauncher = rememberLauncherForActivityResult(
@@ -162,6 +165,16 @@ fun ReminderApp(
                     configMessage = preview.message
                 }
             }
+        }
+    }
+
+    val googleDriveSignInLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartActivityForResult(),
+    ) { result ->
+        val action = pendingGoogleDriveAction
+        pendingGoogleDriveAction = null
+        if (action != null) {
+            viewModel.onGoogleDriveSignInResult(result, action)
         }
     }
 
@@ -261,6 +274,7 @@ fun ReminderApp(
                         reminderDays = state.reminderDays,
                         notificationsEnabled = NotificationManagerCompat.from(context).areNotificationsEnabled(),
                         message = configMessage,
+                        googleDriveMessage = googleDriveMessage,
                         onBack = { showingConfig = false },
                         onStartHourChange = { startHour ->
                             viewModel.updateNotificationWindow(
@@ -280,6 +294,24 @@ fun ReminderApp(
                         },
                         onImport = {
                             importLauncher.launch(arrayOf("text/plain"))
+                        },
+                        onGoogleDriveBackup = {
+                            val account = viewModel.getLastSignedInAccount()
+                            if (account != null) {
+                                viewModel.performGoogleDriveAction(account, MainViewModel.GoogleDriveAction.BACKUP)
+                            } else {
+                                pendingGoogleDriveAction = MainViewModel.GoogleDriveAction.BACKUP
+                                googleDriveSignInLauncher.launch(viewModel.getGoogleDriveSignInIntent())
+                            }
+                        },
+                        onGoogleDriveRestore = {
+                            val account = viewModel.getLastSignedInAccount()
+                            if (account != null) {
+                                viewModel.performGoogleDriveAction(account, MainViewModel.GoogleDriveAction.RESTORE)
+                            } else {
+                                pendingGoogleDriveAction = MainViewModel.GoogleDriveAction.RESTORE
+                                googleDriveSignInLauncher.launch(viewModel.getGoogleDriveSignInIntent())
+                            }
                         },
                         onPrivacyPolicy = {
                             showingConfig = false
@@ -307,6 +339,8 @@ fun ReminderApp(
                         onFilterChange = { reminderFilter = it },
                         onConfig = {
                             configMessage = null
+                            viewModel.clearGoogleDriveMessage()
+                            viewModel.clearGoogleDriveRestorePreview()
                             showingConfig = true
                         },
                         onNewReminder = {
@@ -353,6 +387,47 @@ fun ReminderApp(
                     },
                     dismissButton = {
                         TextButton(onClick = { pendingImport = null }) {
+                            Text(stringResource(R.string.action_cancel))
+                        }
+                    },
+                )
+            }
+
+            googleDriveRestorePreview?.let { preview ->
+                AlertDialog(
+                    onDismissRequest = { viewModel.clearGoogleDriveRestorePreview() },
+                    title = { Text(stringResource(R.string.dialog_import_replace_title)) },
+                    text = {
+                        Text(
+                            stringResource(
+                                R.string.dialog_import_replace_body,
+                                preview.currentReminderCount,
+                                preview.importedState.reminders.size,
+                            ),
+                        )
+                    },
+                    confirmButton = {
+                        Column(horizontalAlignment = Alignment.End) {
+                            TextButton(
+                                onClick = {
+                                    viewModel.mergeGoogleDriveReminders(preview.importedState)
+                                    viewModel.clearGoogleDriveRestorePreview()
+                                },
+                            ) {
+                                Text(stringResource(R.string.action_merge_reminders))
+                            }
+                            TextButton(
+                                onClick = {
+                                    viewModel.importGoogleDriveReminders(preview.importedState)
+                                    viewModel.clearGoogleDriveRestorePreview()
+                                },
+                            ) {
+                                Text(stringResource(R.string.action_replace_reminders))
+                            }
+                        }
+                    },
+                    dismissButton = {
+                        TextButton(onClick = { viewModel.clearGoogleDriveRestorePreview() }) {
                             Text(stringResource(R.string.action_cancel))
                         }
                     },
@@ -445,12 +520,15 @@ private fun ConfigScreen(
     reminderDays: Set<DayOfWeek>,
     notificationsEnabled: Boolean,
     message: String?,
+    googleDriveMessage: String?,
     onBack: () -> Unit,
     onStartHourChange: (Int) -> Unit,
     onEndHourChange: (Int) -> Unit,
     onReminderDayChange: (DayOfWeek, Boolean) -> Unit,
     onExport: () -> Unit,
     onImport: () -> Unit,
+    onGoogleDriveBackup: () -> Unit,
+    onGoogleDriveRestore: () -> Unit,
     onPrivacyPolicy: () -> Unit,
     onOpenNotificationSettings: () -> Unit,
 ) {
@@ -557,6 +635,14 @@ private fun ConfigScreen(
             BackupActionsCard(
                 onExport = onExport,
                 onImport = onImport,
+            )
+        }
+
+        item {
+            GoogleDriveBackupCard(
+                status = googleDriveMessage,
+                onBackup = onGoogleDriveBackup,
+                onRestore = onGoogleDriveRestore,
             )
         }
 
@@ -1044,6 +1130,53 @@ private fun BackupActionsCard(
             buttonLabel = stringResource(R.string.action_import_txt),
             onClick = onImport,
         )
+    }
+}
+
+@Composable
+private fun GoogleDriveBackupCard(
+    status: String?,
+    onBackup: () -> Unit,
+    onRestore: () -> Unit,
+) {
+    AppCard(containerColor = PrimaryCardColor) {
+        Text(
+            text = stringResource(R.string.config_google_drive_title),
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.SemiBold,
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+        Text(
+            text = stringResource(R.string.config_google_drive_body),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        if (!status.isNullOrBlank()) {
+            Spacer(modifier = Modifier.height(12.dp))
+            InfoPill(text = status)
+        }
+        Spacer(modifier = Modifier.height(12.dp))
+        Button(
+            onClick = onBackup,
+            modifier = Modifier.fillMaxWidth(),
+            colors = ButtonDefaults.buttonColors(
+                containerColor = MaterialTheme.colorScheme.primary,
+                contentColor = MaterialTheme.colorScheme.onPrimary,
+            ),
+        ) {
+            Text(stringResource(R.string.action_google_drive_backup))
+        }
+        Spacer(modifier = Modifier.height(8.dp))
+        Button(
+            onClick = onRestore,
+            modifier = Modifier.fillMaxWidth(),
+            colors = ButtonDefaults.buttonColors(
+                containerColor = MaterialTheme.colorScheme.secondary,
+                contentColor = MaterialTheme.colorScheme.onSecondary,
+            ),
+        ) {
+            Text(stringResource(R.string.action_google_drive_import))
+        }
     }
 }
 

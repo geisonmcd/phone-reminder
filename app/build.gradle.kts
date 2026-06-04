@@ -105,6 +105,7 @@ android {
     packaging {
         resources {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
+            excludes += "/META-INF/DEPENDENCIES"
         }
     }
 }
@@ -129,6 +130,11 @@ dependencies {
     implementation("com.google.android.material:material:1.12.0")
     implementation("com.google.firebase:firebase-crashlytics")
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.3")
+    implementation("com.google.android.gms:play-services-auth:21.2.0")
+    implementation("com.google.api-client:google-api-client-android:2.2.0")
+    implementation("com.google.http-client:google-http-client-gson:1.43.3")
+    implementation("com.google.apis:google-api-services-drive:v3-rev20230822-2.0.0")
+    implementation("androidx.lifecycle:lifecycle-viewmodel-ktx:2.8.3")
 
     debugImplementation("androidx.compose.ui:ui-tooling")
     testImplementation("junit:junit:4.13.2")

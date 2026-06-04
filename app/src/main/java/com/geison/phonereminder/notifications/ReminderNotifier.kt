@@ -41,6 +41,28 @@ object ReminderNotifier {
             .setContentIntent(openAppIntent)
             .setAutoCancel(true)
             .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+            .addAction(
+                R.drawable.ic_notification,
+                context.getString(R.string.notification_action_less_often),
+                frequencyActionIntent(
+                    context = context,
+                    requestCode = notificationId xor LESS_OFTEN_REQUEST_CODE_MASK,
+                    action = NotificationReceiver.ACTION_DECREASE_FREQUENCY,
+                    reminderId = reminderId,
+                    notificationId = notificationId,
+                ),
+            )
+            .addAction(
+                R.drawable.ic_notification,
+                context.getString(R.string.notification_action_more_often),
+                frequencyActionIntent(
+                    context = context,
+                    requestCode = notificationId xor MORE_OFTEN_REQUEST_CODE_MASK,
+                    action = NotificationReceiver.ACTION_INCREASE_FREQUENCY,
+                    reminderId = reminderId,
+                    notificationId = notificationId,
+                ),
+            )
             .build()
 
         if (
@@ -68,4 +90,25 @@ object ReminderNotifier {
         }
     }
 
+    private fun frequencyActionIntent(
+        context: Context,
+        requestCode: Int,
+        action: String,
+        reminderId: String,
+        notificationId: Int,
+    ): PendingIntent {
+        return PendingIntent.getBroadcast(
+            context,
+            requestCode,
+            Intent(context, NotificationReceiver::class.java).apply {
+                setAction(action)
+                putExtra(NotificationReceiver.EXTRA_REMINDER_ID, reminderId)
+                putExtra(NotificationReceiver.EXTRA_NOTIFICATION_ID, notificationId)
+            },
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+        )
+    }
+
+    private const val LESS_OFTEN_REQUEST_CODE_MASK = 0x4A71
+    private const val MORE_OFTEN_REQUEST_CODE_MASK = 0x6B92
 }

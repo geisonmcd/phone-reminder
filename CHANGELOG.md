@@ -10,4 +10,6 @@
 - 2026-05-31 — Documented the internal-testing deployment workflow for future agents.
 - 2026-06-01 — Restored richer notification frequency adjustment labels showing the resulting weekly and daily schedule.
 - 2026-06-01 — Replaced the launcher icon with a simpler phone-and-bell logo.
+- 2026-06-03 — Added Google Drive backup and restore option in the config screen.
 - 2026-06-03 — Fixed Play production blocking by updating Android packaging and DataStore for 16 KB page-size compatibility.
+- 2026-06-03 — Grouped Google Drive backup/import controls with sync status and restored notification frequency actions.

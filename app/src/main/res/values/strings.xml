@@ -10,6 +10,11 @@
     <string name="message_export_failed">Export failed: %1$s</string>
     <string name="message_import_failed">Import failed: %1$s</string>
     <string name="message_unknown_error">Unknown error.</string>
+    <string name="message_google_drive_sign_in_cancelled">Google sign-in cancelled.</string>
+    <string name="message_google_drive_sign_in_failed">Google sign-in failed.</string>
+    <string name="message_google_drive_no_backup_found">No backup found in Google Drive.</string>
+    <string name="message_google_drive_backup_failed">Google Drive backup failed: %1$s</string>
+    <string name="message_google_drive_restore_failed">Google Drive restore failed: %1$s</string>
     <plurals name="message_exported_reminders">
         <item quantity="one">Exported 1 reminder.</item>
         <item quantity="other">Exported %1$d reminders.</item>
@@ -21,6 +26,10 @@
     <plurals name="message_merged_reminders">
         <item quantity="one">Merged 1 reminder.</item>
         <item quantity="other">Merged %1$d reminders.</item>
+    </plurals>
+    <plurals name="message_google_drive_backup_status">
+        <item quantity="one">1 reminder in Drive - Last synced %2$s</item>
+        <item quantity="other">%1$d reminders in Drive - Last synced %2$s</item>
     </plurals>
 
     <string name="file_name_export">phone-reminder-export.txt</string>
@@ -45,6 +54,10 @@
     <string name="action_open_privacy_policy">Open privacy policy</string>
     <string name="action_merge_reminders">Merge reminders</string>
     <string name="action_replace_reminders">Replace reminders</string>
+    <string name="action_google_drive_backup">Back up to Google Drive</string>
+    <string name="action_google_drive_import">Import from Google Drive</string>
+    <string name="notification_action_less_often">Less often</string>
+    <string name="notification_action_more_often">More often</string>
 
     <string name="empty_no_reminders_title">No reminders yet</string>
     <string name="empty_no_reminders_body">Create your first reminder.</string>
@@ -69,6 +82,8 @@
     <string name="config_export_body">Save to a text file.</string>
     <string name="config_import_title">Import reminders</string>
     <string name="config_import_body">Merge or replace from a text file.</string>
+    <string name="config_google_drive_title">Google Drive</string>
+    <string name="config_google_drive_body">Back up reminders to Drive or import the latest Drive backup.</string>
     <string name="config_privacy_title">Privacy policy</string>
     <string name="config_privacy_body">Read how your reminder data is handled.</string>
 
@@ -80,7 +95,7 @@
     <string name="privacy_sharing_title">Data sharing</string>
     <string name="privacy_sharing_body">The app does not send reminder content to our servers. Crash reports may send technical diagnostics to Firebase Crashlytics.</string>
     <string name="privacy_backups_title">Backups</string>
-    <string name="privacy_backups_body">Exports are saved only when you choose to create a text backup file.</string>
+    <string name="privacy_backups_body">Exports are saved only when you choose to create a backup. Google Drive backups are stored in your own Google Drive and are only accessible by this app.</string>
     <string name="privacy_contact_title">Contact</string>
     <string name="privacy_contact_body">Publisher: Geison Macedo da Silva.</string>
 

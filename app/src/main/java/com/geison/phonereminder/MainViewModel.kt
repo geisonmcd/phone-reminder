@@ -2,10 +2,13 @@ package com.geison.phonereminder
 
 import android.app.Application
 import android.net.Uri
+import androidx.activity.result.ActivityResult
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.viewModelScope
 import com.geison.phonereminder.R
+import com.geison.phonereminder.backup.GoogleDriveBackupManager
 import com.geison.phonereminder.data.AppState
 import com.geison.phonereminder.data.MAX_NOTIFICATIONS_PER_DAY
 import com.geison.phonereminder.data.ReminderExchange
@@ -16,16 +19,28 @@ import com.geison.phonereminder.data.ScheduleSettings
 import com.geison.phonereminder.diagnostics.Diagnostics
 import com.geison.phonereminder.notifications.NotificationScheduler
 import com.geison.phonereminder.notifications.ReminderNotifier
+import com.google.android.gms.auth.api.signin.GoogleSignIn
+import com.google.android.gms.common.api.ApiException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
+import java.text.DateFormat
 import java.time.DayOfWeek
+import java.util.Date
 
 class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val repository = ReminderRepository(application)
+    private val googleDriveManager = GoogleDriveBackupManager(application)
     private val mutableOpenReminderRequest = MutableStateFlow<String?>(null)
+    private val mutableGoogleDriveMessage = MutableStateFlow<String?>(null)
+    private val mutableGoogleDriveRestorePreview = MutableStateFlow<ImportPreviewResult.Ready?>(null)
 
     val state = repository.state
     val openReminderRequest = mutableOpenReminderRequest.asStateFlow()
+    val googleDriveMessage = mutableGoogleDriveMessage.asStateFlow()
+    val googleDriveRestorePreview = mutableGoogleDriveRestorePreview.asStateFlow()
+
+    enum class GoogleDriveAction { BACKUP, RESTORE }
 
     fun addReminder(text: String): String? {
         val reminderId = repository.addReminder(text)
@@ -159,6 +174,149 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun rescheduleNow() {
         NotificationScheduler.scheduleToday(getApplication())
+    }
+
+    fun getGoogleDriveSignInIntent() = googleDriveManager.getSignInIntent()
+
+    fun getLastSignedInAccount() = googleDriveManager.getLastSignedInAccount()
+
+    fun performGoogleDriveAction(
+        account: com.google.android.gms.auth.api.signin.GoogleSignInAccount,
+        action: GoogleDriveAction,
+    ) {
+        when (action) {
+            GoogleDriveAction.BACKUP -> performGoogleDriveBackup(account)
+            GoogleDriveAction.RESTORE -> performGoogleDriveRestore(account)
+        }
+    }
+
+    fun onGoogleDriveSignInResult(result: ActivityResult, action: GoogleDriveAction) {
+        val task = GoogleSignIn.getSignedInAccountFromIntent(result.data)
+        try {
+            val account = task.getResult(ApiException::class.java)
+            if (account == null) {
+                mutableGoogleDriveMessage.value = getApplication<Application>().getString(
+                    R.string.message_google_drive_sign_in_failed,
+                )
+                return
+            }
+            performGoogleDriveAction(account, action)
+        } catch (e: ApiException) {
+            val message = if (e.statusCode == com.google.android.gms.auth.api.signin.GoogleSignInStatusCodes.SIGN_IN_CANCELLED) {
+                getApplication<Application>().getString(R.string.message_google_drive_sign_in_cancelled)
+            } else {
+                getApplication<Application>().getString(R.string.message_google_drive_sign_in_failed)
+            }
+            mutableGoogleDriveMessage.value = message
+            Diagnostics.recordNonFatal(
+                area = "google_drive_sign_in_failed",
+                throwable = e,
+            )
+        }
+    }
+
+    fun clearGoogleDriveMessage() {
+        mutableGoogleDriveMessage.value = null
+    }
+
+    fun clearGoogleDriveRestorePreview() {
+        mutableGoogleDriveRestorePreview.value = null
+    }
+
+    fun importGoogleDriveReminders(importedState: AppState) {
+        repository.replaceState(importedState)
+        recordImportSuccess(
+            mode = "google_drive_replace",
+            importedReminderCount = importedState.reminders.size,
+            totalReminderCount = importedState.reminders.size,
+        )
+        val count = importedState.reminders.size
+        mutableGoogleDriveMessage.value = getApplication<Application>().resources.getQuantityString(
+            R.plurals.message_imported_reminders,
+            count,
+            count,
+        )
+    }
+
+    fun mergeGoogleDriveReminders(importedState: AppState) {
+        val mergedState = ReminderImportMerge.merge(
+            currentState = state.value,
+            importedState = importedState,
+        )
+        repository.replaceState(mergedState)
+        recordImportSuccess(
+            mode = "google_drive_merge",
+            importedReminderCount = importedState.reminders.size,
+            totalReminderCount = mergedState.reminders.size,
+        )
+        val count = importedState.reminders.size
+        mutableGoogleDriveMessage.value = getApplication<Application>().resources.getQuantityString(
+            R.plurals.message_merged_reminders,
+            count,
+            count,
+        )
+    }
+
+    private fun performGoogleDriveBackup(account: com.google.android.gms.auth.api.signin.GoogleSignInAccount) {
+        viewModelScope.launch {
+            val content = ReminderExchange.export(state.value)
+            val backupResult = googleDriveManager.backup(account, content)
+            mutableGoogleDriveMessage.value = backupResult.fold(
+                onSuccess = {
+                    val count = state.value.reminders.size
+                    val syncedAt = DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT)
+                        .format(Date())
+                    getApplication<Application>().resources.getQuantityString(
+                        R.plurals.message_google_drive_backup_status,
+                        count,
+                        count,
+                        syncedAt,
+                    )
+                },
+                onFailure = { error ->
+                    Diagnostics.recordNonFatal(
+                        area = "google_drive_backup_failed",
+                        throwable = error,
+                    )
+                    getApplication<Application>().getString(
+                        R.string.message_google_drive_backup_failed,
+                        error.message ?: getApplication<Application>().getString(R.string.message_unknown_error),
+                    )
+                },
+            )
+        }
+    }
+
+    private fun performGoogleDriveRestore(account: com.google.android.gms.auth.api.signin.GoogleSignInAccount) {
+        viewModelScope.launch {
+            val restoreResult = googleDriveManager.restore(account)
+            restoreResult.fold(
+                onSuccess = { content ->
+                    try {
+                        val importedState = ReminderExchange.import(content)
+                        mutableGoogleDriveRestorePreview.value = ImportPreviewResult.Ready(
+                            importedState = importedState,
+                            currentReminderCount = state.value.reminders.size,
+                        )
+                    } catch (error: Exception) {
+                        mutableGoogleDriveMessage.value = getApplication<Application>().getString(
+                            R.string.message_google_drive_restore_failed,
+                            error.message ?: getApplication<Application>().getString(R.string.message_unknown_error),
+                        )
+                    }
+                },
+                onFailure = { error ->
+                    Diagnostics.recordNonFatal(
+                        area = "google_drive_restore_failed",
+                        throwable = error,
+                    )
+                    mutableGoogleDriveMessage.value = getApplication<Application>().getString(
+                        R.string.message_google_drive_restore_failed,
+                        error.message ?: getApplication<Application>().getString(R.string.message_unknown_error),
+                    )
+                },
+            )
+        }
     }
 
     fun exportReminders(uri: Uri): String {

@@ -10,6 +10,11 @@
     <string name="message_export_failed">Falha ao exportar: %1$s</string>
     <string name="message_import_failed">Falha ao importar: %1$s</string>
     <string name="message_unknown_error">Erro desconhecido.</string>
+    <string name="message_google_drive_sign_in_cancelled">Login do Google cancelado.</string>
+    <string name="message_google_drive_sign_in_failed">Falha no login do Google.</string>
+    <string name="message_google_drive_no_backup_found">Nenhum backup encontrado no Google Drive.</string>
+    <string name="message_google_drive_backup_failed">Falha no backup do Google Drive: %1$s</string>
+    <string name="message_google_drive_restore_failed">Falha na restauração do Google Drive: %1$s</string>
     <plurals name="message_exported_reminders">
         <item quantity="one">%1$d lembrete exportado.</item>
         <item quantity="many">%1$d lembretes exportados.</item>
@@ -24,6 +29,11 @@
         <item quantity="one">%1$d lembrete mesclado.</item>
         <item quantity="many">%1$d lembretes mesclados.</item>
         <item quantity="other">%1$d lembretes mesclados.</item>
+    </plurals>
+    <plurals name="message_google_drive_backup_status">
+        <item quantity="one">%1$d lembrete no Drive - Última sincronização %2$s</item>
+        <item quantity="many">%1$d lembretes no Drive - Última sincronização %2$s</item>
+        <item quantity="other">%1$d lembretes no Drive - Última sincronização %2$s</item>
     </plurals>
 
     <string name="file_name_export">phone-reminder-export.txt</string>
@@ -48,6 +58,10 @@
     <string name="action_open_privacy_policy">Abrir política de privacidade</string>
     <string name="action_merge_reminders">Mesclar lembretes</string>
     <string name="action_replace_reminders">Substituir lembretes</string>
+    <string name="action_google_drive_backup">Fazer backup no Google Drive</string>
+    <string name="action_google_drive_import">Importar do Google Drive</string>
+    <string name="notification_action_less_often">Menos vezes</string>
+    <string name="notification_action_more_often">Mais vezes</string>
 
     <string name="empty_no_reminders_title">Nenhum lembrete ainda</string>
     <string name="empty_no_reminders_body">Crie seu primeiro lembrete.</string>
@@ -72,6 +86,8 @@
     <string name="config_export_body">Salve em um arquivo de texto.</string>
     <string name="config_import_title">Importar lembretes</string>
     <string name="config_import_body">Mescle ou substitua a partir de um arquivo de texto.</string>
+    <string name="config_google_drive_title">Google Drive</string>
+    <string name="config_google_drive_body">Faça backup dos lembretes no Drive ou importe o backup mais recente.</string>
     <string name="config_privacy_title">Política de privacidade</string>
     <string name="config_privacy_body">Leia como seus dados de lembretes são tratados.</string>
 
@@ -83,7 +99,7 @@
     <string name="privacy_sharing_title">Compartilhamento de dados</string>
     <string name="privacy_sharing_body">O app não envia conteúdo dos lembretes para nossos servidores. Relatórios de falhas podem enviar diagnósticos técnicos ao Firebase Crashlytics.</string>
     <string name="privacy_backups_title">Backups</string>
-    <string name="privacy_backups_body">As exportações são salvas apenas quando você escolhe criar um backup em arquivo de texto.</string>
+    <string name="privacy_backups_body">As exportações são salvas apenas quando você escolhe criar um backup. Backups no Google Drive são armazenados no seu próprio Google Drive e só são acessíveis por este app.</string>
     <string name="privacy_contact_title">Contato</string>
     <string name="privacy_contact_body">Publicador: Geison Macedo da Silva.</string>
 
