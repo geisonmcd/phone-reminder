@@ -75,9 +75,14 @@ android {
     }
 
     buildTypes {
+        debug {
+            buildConfigField("boolean", "GOOGLE_DRIVE_BACKUP_ENABLED", "true")
+        }
+
         release {
             isMinifyEnabled = false
             signingConfig = signingConfigs.findByName("release")
+            buildConfigField("boolean", "GOOGLE_DRIVE_BACKUP_ENABLED", "false")
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro",
@@ -95,6 +100,7 @@ android {
     }
 
     buildFeatures {
+        buildConfig = true
         compose = true
     }
 

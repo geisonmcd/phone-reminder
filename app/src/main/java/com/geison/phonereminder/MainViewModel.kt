@@ -169,12 +169,20 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun getGoogleDriveSignInIntent() = googleDriveManager.getSignInIntent()
 
-    fun getLastSignedInAccount() = googleDriveManager.getLastSignedInAccount()
+    fun getLastSignedInAccount() = if (BuildConfig.GOOGLE_DRIVE_BACKUP_ENABLED) {
+        googleDriveManager.getLastSignedInAccount()
+    } else {
+        null
+    }
 
     fun performGoogleDriveAction(
         account: com.google.android.gms.auth.api.signin.GoogleSignInAccount,
         action: GoogleDriveAction,
     ) {
+        if (!BuildConfig.GOOGLE_DRIVE_BACKUP_ENABLED) {
+            return
+        }
+
         when (action) {
             GoogleDriveAction.BACKUP -> performGoogleDriveBackup(account)
             GoogleDriveAction.RESTORE -> performGoogleDriveRestore(account)
@@ -182,6 +190,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun onGoogleDriveSignInResult(result: ActivityResult, action: GoogleDriveAction) {
+        if (!BuildConfig.GOOGLE_DRIVE_BACKUP_ENABLED) {
+            return
+        }
+
         val task = GoogleSignIn.getSignedInAccountFromIntent(result.data)
         try {
             val account = task.getResult(ApiException::class.java)

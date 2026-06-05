@@ -68,8 +68,9 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.core.app.NotificationManagerCompat
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.platform.LocalContext
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.geison.phonereminder.BuildConfig
 import com.geison.phonereminder.ImportPreviewResult
 import com.geison.phonereminder.MainViewModel
 import com.geison.phonereminder.R
@@ -276,6 +277,7 @@ fun ReminderApp(
                         notificationsEnabled = NotificationManagerCompat.from(context).areNotificationsEnabled(),
                         message = configMessage,
                         googleDriveMessage = googleDriveMessage,
+                        isGoogleDriveBackupEnabled = BuildConfig.GOOGLE_DRIVE_BACKUP_ENABLED,
                         onBack = { showingConfig = false },
                         onStartHourChange = { startHour ->
                             viewModel.updateNotificationWindow(
@@ -522,6 +524,7 @@ private fun ConfigScreen(
     notificationsEnabled: Boolean,
     message: String?,
     googleDriveMessage: String?,
+    isGoogleDriveBackupEnabled: Boolean,
     onBack: () -> Unit,
     onStartHourChange: (Int) -> Unit,
     onEndHourChange: (Int) -> Unit,
@@ -606,12 +609,14 @@ private fun ConfigScreen(
             )
         }
 
-        item {
-            GoogleDriveBackupCard(
-                status = googleDriveMessage,
-                onBackup = onGoogleDriveBackup,
-                onRestore = onGoogleDriveRestore,
-            )
+        if (isGoogleDriveBackupEnabled) {
+            item {
+                GoogleDriveBackupCard(
+                    status = googleDriveMessage,
+                    onBackup = onGoogleDriveBackup,
+                    onRestore = onGoogleDriveRestore,
+                )
+            }
         }
 
         item {
