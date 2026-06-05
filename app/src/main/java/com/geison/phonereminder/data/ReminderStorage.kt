@@ -67,31 +67,21 @@ object ReminderStorage {
             buildJsonObject {
                 reminderObject.forEach { (key, value) ->
                     if (key == "schedule") {
-                        val legacyWeekCount = scheduleObject["notificationsPerDay"]
-                        val hasModernWeekCount = "notificationsPerWeek" in scheduleObject
-
                         put(
                             "schedule",
                             buildJsonObject {
                                 scheduleObject.forEach { (scheduleKey, scheduleValue) ->
                                     if (
                                         scheduleKey != "startHour" &&
-                                        scheduleKey != "endHour" &&
-                                        scheduleKey != "notificationsPerDay"
+                                        scheduleKey != "endHour"
                                     ) {
                                         put(scheduleKey, scheduleValue)
                                     }
                                 }
-
-                                if (!hasModernWeekCount && legacyWeekCount != null) {
-                                    put("notificationsPerWeek", legacyWeekCount)
-                                    put("notificationsPerDay", 1)
-                                } else {
-                                    put(
-                                        "notificationsPerDay",
-                                        scheduleObject["notificationsPerDay"]?.jsonPrimitive?.intOrNull ?: 1,
-                                    )
-                                }
+                                put(
+                                    "notificationsPerDay",
+                                    scheduleObject["notificationsPerDay"]?.jsonPrimitive?.intOrNull ?: 1,
+                                )
                             },
                         )
                     } else {

@@ -7,6 +7,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -37,7 +38,6 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.Checkbox
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -64,6 +64,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.core.app.NotificationManagerCompat
@@ -94,6 +95,8 @@ private val InkColor = Color(0xFF10203A)
 private val AccentColor = Color(0xFF2563EB)
 private val SoftAccent = Color(0xFFD8E7FF)
 private val PillTextColor = Color(0xFF163E85)
+private val WeekendAccent = Color(0xFFFFE1C2)
+private val WeekendTextColor = Color(0xFF9A4A00)
 private val AppCardShape = RoundedCornerShape(24.dp)
 private val AppPillShape = RoundedCornerShape(999.dp)
 
@@ -233,12 +236,11 @@ fun ReminderApp(
                         notificationWindow = state.notificationWindow,
                         reminderDays = state.reminderDays,
                         onBack = { selectedReminderId = null },
-                        onSave = { text, notificationsPerWeek, notificationsPerDay ->
+                        onSave = { text, notificationsPerDay ->
                             if (isCreatingNewReminder) {
                                 if (
                                     viewModel.addReminder(
                                         text = text,
-                                        notificationsPerWeek = notificationsPerWeek,
                                         notificationsPerDay = notificationsPerDay,
                                         createdAtEpochMillis = selectedReminder.createdAtEpochMillis,
                                     ) != null
@@ -249,7 +251,6 @@ fun ReminderApp(
                                 viewModel.saveReminder(
                                     reminderId = selectedReminder.id,
                                     text = text,
-                                    notificationsPerWeek = notificationsPerWeek,
                                     notificationsPerDay = notificationsPerDay,
                                 )
                                 selectedReminderId = null
@@ -599,39 +600,6 @@ private fun ConfigScreen(
         }
 
         item {
-            AppCard(containerColor = if (notificationsEnabled) PrimaryCardColor else MutedCardColor) {
-                Text(
-                    text = stringResource(R.string.config_notifications_title),
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold,
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-                Text(
-                    text = if (notificationsEnabled) {
-                        stringResource(R.string.config_notifications_enabled)
-                    } else {
-                        stringResource(R.string.config_notifications_disabled)
-                    },
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                if (!notificationsEnabled) {
-                    Spacer(modifier = Modifier.height(12.dp))
-                    Button(
-                        onClick = onOpenNotificationSettings,
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = MaterialTheme.colorScheme.primary,
-                            contentColor = MaterialTheme.colorScheme.onPrimary,
-                        ),
-                    ) {
-                        Text(stringResource(R.string.action_open_notification_settings))
-                    }
-                }
-            }
-        }
-
-        item {
             BackupActionsCard(
                 onExport = onExport,
                 onImport = onImport,
@@ -652,6 +620,13 @@ private fun ConfigScreen(
                 body = stringResource(R.string.config_privacy_body),
                 buttonLabel = stringResource(R.string.action_open_privacy_policy),
                 onClick = onPrivacyPolicy,
+            )
+        }
+
+        item {
+            NotificationPermissionCard(
+                notificationsEnabled = notificationsEnabled,
+                onOpenNotificationSettings = onOpenNotificationSettings,
             )
         }
     }
@@ -675,18 +650,18 @@ private fun ReminderDaysCard(
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         Spacer(modifier = Modifier.height(8.dp))
-        reminderDayOptions().forEachIndexed { index, option ->
-            ReminderDayCheckboxRow(
-                option = option,
-                checked = option.dayOfWeek in reminderDays,
-                onCheckedChange = { isChecked ->
-                    onReminderDayChange(option.dayOfWeek, isChecked)
-                },
-            )
-            if (index < DayOfWeek.values().lastIndex) {
-                HorizontalDivider(
-                    modifier = Modifier.padding(vertical = 2.dp),
-                    color = MaterialTheme.colorScheme.outline.copy(alpha = 0.2f),
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            reminderDayOptions().forEach { option ->
+                ReminderDayToggle(
+                    option = option,
+                    checked = option.dayOfWeek in reminderDays,
+                    onCheckedChange = { isChecked ->
+                        onReminderDayChange(option.dayOfWeek, isChecked)
+                    },
+                    modifier = Modifier.weight(1f),
                 )
             }
         }
@@ -694,28 +669,81 @@ private fun ReminderDaysCard(
 }
 
 @Composable
-private fun ReminderDayCheckboxRow(
+private fun ReminderDayToggle(
     option: ReminderDayOption,
     checked: Boolean,
     onCheckedChange: (Boolean) -> Unit,
+    modifier: Modifier = Modifier,
 ) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable { onCheckedChange(!checked) }
-            .padding(vertical = 6.dp),
-        verticalAlignment = Alignment.CenterVertically,
+    val isWeekend = option.dayOfWeek == DayOfWeek.SATURDAY || option.dayOfWeek == DayOfWeek.SUNDAY
+    val containerColor = when {
+        checked && isWeekend -> WeekendAccent
+        checked -> SoftAccent
+        else -> PrimaryCardColor
+    }
+    val textColor = when {
+        isWeekend -> WeekendTextColor
+        checked -> PillTextColor
+        else -> MaterialTheme.colorScheme.onSurfaceVariant
+    }
+    val borderColor = when {
+        checked && isWeekend -> WeekendTextColor.copy(alpha = 0.5f)
+        checked -> AccentColor.copy(alpha = 0.55f)
+        else -> MaterialTheme.colorScheme.outline.copy(alpha = 0.4f)
+    }
+
+    Box(
+        modifier = modifier
+            .height(44.dp)
+            .clip(AppPillShape)
+            .background(containerColor)
+            .border(1.dp, borderColor, AppPillShape)
+            .clickable { onCheckedChange(!checked) },
+        contentAlignment = Alignment.Center,
     ) {
-        Checkbox(
-            checked = checked,
-            onCheckedChange = onCheckedChange,
-        )
-        Spacer(modifier = Modifier.width(8.dp))
         Text(
-            text = option.label,
-            style = MaterialTheme.typography.bodyLarge,
-            fontWeight = FontWeight.Medium,
+            text = option.label.first().uppercase(),
+            style = MaterialTheme.typography.bodyMedium,
+            fontWeight = FontWeight.Bold,
+            color = textColor,
         )
+    }
+}
+
+@Composable
+private fun NotificationPermissionCard(
+    notificationsEnabled: Boolean,
+    onOpenNotificationSettings: () -> Unit,
+) {
+    AppCard(containerColor = if (notificationsEnabled) PrimaryCardColor else MutedCardColor) {
+        Text(
+            text = stringResource(R.string.config_notifications_title),
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.SemiBold,
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+        Text(
+            text = if (notificationsEnabled) {
+                stringResource(R.string.config_notifications_enabled)
+            } else {
+                stringResource(R.string.config_notifications_disabled)
+            },
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        if (!notificationsEnabled) {
+            Spacer(modifier = Modifier.height(12.dp))
+            Button(
+                onClick = onOpenNotificationSettings,
+                modifier = Modifier.fillMaxWidth(),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    contentColor = MaterialTheme.colorScheme.onPrimary,
+                ),
+            ) {
+                Text(stringResource(R.string.action_open_notification_settings))
+            }
+        }
     }
 }
 
@@ -781,14 +809,11 @@ private fun ReminderEditScreen(
     notificationWindow: NotificationWindowSettings,
     reminderDays: Set<DayOfWeek>,
     onBack: () -> Unit,
-    onSave: (String, Int, Int) -> Unit,
+    onSave: (String, Int) -> Unit,
     onDelete: () -> Unit,
     onTestNotification: (String, String) -> Unit,
 ) {
     var text by rememberSaveable(reminder.id, reminder.text) { mutableStateOf(reminder.text) }
-    var notificationsPerWeek by rememberSaveable(reminder.id, reminder.schedule.notificationsPerWeek) {
-        mutableStateOf(reminder.schedule.notificationsPerWeek)
-    }
     var notificationsPerDay by rememberSaveable(reminder.id, reminder.schedule.notificationsPerDay) {
         mutableStateOf(reminder.schedule.notificationsPerDay)
     }
@@ -837,7 +862,7 @@ private fun ReminderEditScreen(
             FloatingActionButton(
                 onClick = {
                     if (text.isNotBlank()) {
-                        onSave(text, notificationsPerWeek, notificationsPerDay)
+                        onSave(text, notificationsPerDay)
                     }
                 },
                 containerColor = if (text.isBlank()) {
@@ -873,33 +898,7 @@ private fun ReminderEditScreen(
                     minLines = 4,
                     label = { Text(stringResource(R.string.label_reminder)) },
                     colors = appTextFieldColors(),
-                    supportingText = {
-                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                            if (text.isBlank()) {
-                                Text(
-                                    text = stringResource(R.string.reminder_text_required),
-                                    color = MaterialTheme.colorScheme.error,
-                                )
-                            }
-                            Text(stringResource(R.string.example_reminder))
-                            Text(
-                                text = stringResource(
-                                    R.string.notification_length_count,
-                                    text.length,
-                                    NOTIFICATION_TEXT_WARNING_LIMIT,
-                                ),
-                                color = if (isNotificationLengthWarning) {
-                                    MaterialTheme.colorScheme.error
-                                } else {
-                                    MaterialTheme.colorScheme.onSurfaceVariant
-                                },
-                            )
-                            Text(
-                                text = stringResource(R.string.notification_length_body),
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                        }
-                    },
+                    isError = isNotificationLengthWarning,
                 )
             }
         }
@@ -918,58 +917,15 @@ private fun ReminderEditScreen(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 Spacer(modifier = Modifier.height(12.dp))
-                val lowerNotificationsPerWeek = (notificationsPerWeek - notificationsPerDay)
-                    .coerceAtLeast(notificationsPerDay)
-                val higherNotificationsPerWeek = (notificationsPerWeek + notificationsPerDay)
-                    .coerceAtMost(notificationsPerDay * 7)
-                StepperRow(
-                    label = stringResource(R.string.label_notifications_per_week),
-                    value = notificationsPerWeek.toString(),
-                    decreaseLabel = frequencyAdjustmentLabel(
-                        prefix = "-",
-                        notificationsPerWeek = lowerNotificationsPerWeek,
-                        notificationsPerDay = notificationsPerDay,
-                    ),
-                    increaseLabel = frequencyAdjustmentLabel(
-                        prefix = "+",
-                        notificationsPerWeek = higherNotificationsPerWeek,
-                        notificationsPerDay = notificationsPerDay,
-                    ),
-                    onDecrease = {
-                        notificationsPerWeek = lowerNotificationsPerWeek
-                    },
-                    onIncrease = {
-                        notificationsPerWeek = higherNotificationsPerWeek
-                    },
-                )
-                HorizontalDivider(
-                    modifier = Modifier.padding(vertical = 8.dp),
-                    color = MaterialTheme.colorScheme.outline.copy(alpha = 0.35f),
-                )
                 val lowerNotificationsPerDay = (notificationsPerDay - 1).coerceAtLeast(1)
                 val higherNotificationsPerDay = (notificationsPerDay + 1).coerceAtMost(MAX_NOTIFICATIONS_PER_DAY)
-                val lowerDailyWeekCount = snapWeeklyCount(notificationsPerWeek, lowerNotificationsPerDay)
-                val higherDailyWeekCount = snapWeeklyCount(notificationsPerWeek, higherNotificationsPerDay)
-                StepperRow(
-                    label = stringResource(R.string.label_notifications_per_day),
+                DailyScheduleStepper(
                     value = notificationsPerDay.toString(),
-                    decreaseLabel = frequencyAdjustmentLabel(
-                        prefix = "-",
-                        notificationsPerWeek = lowerDailyWeekCount,
-                        notificationsPerDay = lowerNotificationsPerDay,
-                    ),
-                    increaseLabel = frequencyAdjustmentLabel(
-                        prefix = "+",
-                        notificationsPerWeek = higherDailyWeekCount,
-                        notificationsPerDay = higherNotificationsPerDay,
-                    ),
                     onDecrease = {
                         notificationsPerDay = lowerNotificationsPerDay
-                        notificationsPerWeek = lowerDailyWeekCount
                     },
                     onIncrease = {
                         notificationsPerDay = higherNotificationsPerDay
-                        notificationsPerWeek = higherDailyWeekCount
                     },
                 )
                 HorizontalDivider(
@@ -978,7 +934,6 @@ private fun ReminderEditScreen(
                 )
                 Text(
                     text = schedulePreview(
-                        notificationsPerWeek = notificationsPerWeek,
                         notificationsPerDay = notificationsPerDay,
                         startHour = notificationWindow.startHour,
                         endHour = notificationWindow.endHour,
@@ -1339,6 +1294,42 @@ private fun PrivacySection(
 }
 
 @Composable
+private fun DailyScheduleStepper(
+    value: String,
+    onDecrease: () -> Unit,
+    onIncrease: () -> Unit,
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        SmallActionButton(
+            label = "-",
+            onClick = onDecrease,
+            modifier = Modifier
+                .weight(1f)
+                .height(48.dp),
+        )
+        Text(
+            text = value,
+            modifier = Modifier.weight(1f),
+            style = MaterialTheme.typography.headlineSmall,
+            fontWeight = FontWeight.SemiBold,
+            textAlign = TextAlign.Center,
+            color = InkColor,
+        )
+        SmallActionButton(
+            label = "+",
+            onClick = onIncrease,
+            modifier = Modifier
+                .weight(1f)
+                .height(48.dp),
+        )
+    }
+}
+
+@Composable
 private fun CompactDivider() {
     HorizontalDivider(
         modifier = Modifier.padding(vertical = 12.dp),
@@ -1498,6 +1489,7 @@ private fun AppCard(
     content: @Composable ColumnScope.() -> Unit,
 ) {
     Card(
+        modifier = Modifier.fillMaxWidth(),
         shape = AppCardShape,
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.55f)),
         colors = CardDefaults.cardColors(
@@ -1597,14 +1589,6 @@ private fun hourLabel(hour: Int): String {
     return "%02d:00".format(hour)
 }
 
-private fun frequencyAdjustmentLabel(
-    prefix: String,
-    notificationsPerWeek: Int,
-    notificationsPerDay: Int,
-): String {
-    return "$prefix $notificationsPerWeek/week $notificationsPerDay/day"
-}
-
 private fun formatCreatedAt(epochMillis: Long): String {
     val formatter = DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT)
     return formatter.format(Date(epochMillis))
@@ -1627,14 +1611,12 @@ private fun reminderDayOptions(): List<ReminderDayOption> {
 private fun scheduleSummary(reminder: ReminderItem): String {
     return stringResource(
         R.string.schedule_summary,
-        reminder.schedule.notificationsPerWeek,
         reminder.schedule.notificationsPerDay,
     )
 }
 
 @Composable
 private fun schedulePreview(
-    notificationsPerWeek: Int,
     notificationsPerDay: Int,
     startHour: Int,
     endHour: Int,
@@ -1647,7 +1629,6 @@ private fun schedulePreview(
     }
     return stringResource(
         R.string.schedule_summary_full,
-        notificationsPerWeek,
         notificationsPerDay,
         hourLabel(startHour),
         hourLabel(endHour),
@@ -1674,18 +1655,3 @@ private data class ReminderDayOption(
     val dayOfWeek: DayOfWeek,
     val label: String,
 )
-
-private fun snapWeeklyCount(
-    value: Int,
-    notificationsPerDay: Int,
-): Int {
-    val minValue = notificationsPerDay
-    val maxValue = notificationsPerDay * 7
-    val coerced = value.coerceIn(minValue, maxValue)
-    val remainder = coerced % notificationsPerDay
-    return if (remainder == 0) {
-        coerced
-    } else {
-        (coerced + notificationsPerDay - remainder).coerceAtMost(maxValue)
-    }
-}

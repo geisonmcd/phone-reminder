@@ -12,6 +12,7 @@
     <string name="message_unknown_error">Unknown error.</string>
     <string name="message_google_drive_sign_in_cancelled">Google sign-in cancelled.</string>
     <string name="message_google_drive_sign_in_failed">Google sign-in failed.</string>
+    <string name="message_google_drive_sign_in_failed_with_code">Google sign-in failed. Status code: %1$d.</string>
     <string name="message_google_drive_no_backup_found">No backup found in Google Drive.</string>
     <string name="message_google_drive_backup_failed">Google Drive backup failed: %1$s</string>
     <string name="message_google_drive_restore_failed">Google Drive restore failed: %1$s</string>
@@ -58,6 +59,8 @@
     <string name="action_google_drive_import">Import from Google Drive</string>
     <string name="notification_action_less_often">Less often</string>
     <string name="notification_action_more_often">More often</string>
+    <string name="notification_action_schedule_less">- %1$d/day</string>
+    <string name="notification_action_schedule_more">+ %1$d/day</string>
 
     <string name="empty_no_reminders_title">No reminders yet</string>
     <string name="empty_no_reminders_body">Create your first reminder.</string>
@@ -104,22 +107,17 @@
     <string name="dialog_import_replace_title">Import reminders?</string>
     <string name="dialog_import_replace_body">This file has %2$d reminders. Merge them with your %1$d current reminders or replace your current list.</string>
     <string name="label_reminder_text">Reminder text</string>
-    <string name="reminder_text_required">Reminder text is required.</string>
     <string name="label_reminder">Reminder</string>
-    <string name="example_reminder">Example: Protect your attention.</string>
-    <string name="notification_length_count">%1$d/%2$d characters before notification-length warning</string>
-    <string name="notification_length_body">Long text may be cut off.</string>
     <string name="info_title">Info</string>
     <string name="created_at">Created %1$s</string>
     <string name="schedule_title">Schedule</string>
-    <string name="schedule_body">Weekly totals move in daily steps.</string>
-    <string name="label_notifications_per_week">Notifications per week</string>
+    <string name="schedule_body">Set how many reminders can appear each selected day.</string>
     <string name="label_notifications_per_day">Notifications per day</string>
     <string name="actions_title">Actions</string>
     <string name="saved_reminders_title">Saved reminders</string>
     <string name="filter_reminders_label">Filter reminders</string>
-    <string name="schedule_summary">%1$d/week, %2$d/day</string>
-    <string name="schedule_summary_full">%1$d reminders/week, max %2$d/day, between %3$s and %4$s on %5$s.</string>
+    <string name="schedule_summary">%1$d/day</string>
+    <string name="schedule_summary_full">%1$d/day between %2$s and %3$s on %4$s.</string>
     <string name="schedule_summary_all_days">all days</string>
     <string name="notification_rationale_title">Allow notifications?</string>
     <string name="notification_rationale_body">Notifications let reminders appear on time during the day. Without them, reminders won\'t show up.</string>

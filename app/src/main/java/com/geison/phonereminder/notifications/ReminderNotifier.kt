@@ -11,6 +11,7 @@ import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
 import com.geison.phonereminder.MainActivity
 import com.geison.phonereminder.R
+import com.geison.phonereminder.data.ReminderStorage
 import com.geison.phonereminder.diagnostics.Diagnostics
 
 object ReminderNotifier {
@@ -33,6 +34,12 @@ object ReminderNotifier {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
         )
 
+        val schedule = ReminderStorage.load(context).reminders
+            .firstOrNull { it.id == reminderId }
+            ?.schedule
+        val lessOftenSchedule = schedule?.let { adjustScheduleFrequency(it, FrequencyAdjustment.LESS_OFTEN) }
+        val moreOftenSchedule = schedule?.let { adjustScheduleFrequency(it, FrequencyAdjustment.MORE_OFTEN) }
+
         val notification = NotificationCompat.Builder(context, NotificationChannels.REMINDER_CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_notification)
             .setContentTitle(context.getString(R.string.notification_title_reminder))
@@ -43,7 +50,12 @@ object ReminderNotifier {
             .setPriority(NotificationCompat.PRIORITY_DEFAULT)
             .addAction(
                 R.drawable.ic_notification,
-                context.getString(R.string.notification_action_less_often),
+                lessOftenSchedule?.let { adjustedSchedule ->
+                    context.getString(
+                        R.string.notification_action_schedule_less,
+                        adjustedSchedule.notificationsPerDay,
+                    )
+                } ?: context.getString(R.string.notification_action_less_often),
                 frequencyActionIntent(
                     context = context,
                     requestCode = notificationId xor LESS_OFTEN_REQUEST_CODE_MASK,
@@ -54,7 +66,12 @@ object ReminderNotifier {
             )
             .addAction(
                 R.drawable.ic_notification,
-                context.getString(R.string.notification_action_more_often),
+                moreOftenSchedule?.let { adjustedSchedule ->
+                    context.getString(
+                        R.string.notification_action_schedule_more,
+                        adjustedSchedule.notificationsPerDay,
+                    )
+                } ?: context.getString(R.string.notification_action_more_often),
                 frequencyActionIntent(
                     context = context,
                     requestCode = notificationId xor MORE_OFTEN_REQUEST_CODE_MASK,

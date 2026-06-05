@@ -4,12 +4,10 @@ import kotlinx.serialization.Serializable
 import java.time.DayOfWeek
 
 const val MAX_NOTIFICATIONS_PER_DAY = 50
-const val MAX_NOTIFICATIONS_PER_WEEK = MAX_NOTIFICATIONS_PER_DAY * 7
 val DEFAULT_REMINDER_DAYS: Set<DayOfWeek> = DayOfWeek.values().toSet()
 
 @Serializable
 data class ScheduleSettings(
-    val notificationsPerWeek: Int = 3,
     val notificationsPerDay: Int = 1,
 )
 

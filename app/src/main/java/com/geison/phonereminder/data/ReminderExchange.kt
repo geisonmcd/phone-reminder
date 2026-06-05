@@ -14,8 +14,8 @@ object ReminderExchange {
     private const val defaultStartHourLabel = "Default start hour: "
     private const val defaultEndHourLabel = "Default end hour: "
     private const val reminderDaysLabel = "Reminder days: "
-    private const val notificationsLabel = "Notifications per week: "
     private const val notificationsPerDayLabel = "Notifications per day: "
+    private const val obsoleteNotificationsPrefix = "Notifications per "
     private const val legacyReminderStartHourLabel = "Start hour: "
     private const val legacyReminderEndHourLabel = "End hour: "
 
@@ -39,7 +39,6 @@ object ReminderExchange {
             lines += reminderStart
             lines += reminder.text.trimEnd()
             lines += reminderEnd
-            lines += notificationsLabel + reminder.schedule.notificationsPerWeek
             lines += notificationsPerDayLabel + reminder.schedule.notificationsPerDay
         }
 
@@ -112,10 +111,12 @@ object ReminderExchange {
                 "Reminder text cannot be blank."
             }
 
-            val rawNotificationsPerWeek = cursor.readNumber(
-                prefix = notificationsLabel,
-                errorLabel = "Notifications per week",
-            )
+            if (
+                cursor.peekLine()?.startsWith(obsoleteNotificationsPrefix) == true &&
+                cursor.peekLine()?.startsWith(notificationsPerDayLabel) != true
+            ) {
+                cursor.readLine()
+            }
             val notificationsPerDay = if (cursor.peekLine()?.startsWith(notificationsPerDayLabel) == true) {
                 cursor.readNumber(
                     prefix = notificationsPerDayLabel,
@@ -124,7 +125,6 @@ object ReminderExchange {
             } else {
                 1
             }
-            val notificationsPerWeek = snapWeeklyCount(rawNotificationsPerWeek, notificationsPerDay)
 
             val importedDefaults = readOptionalReminderMetadata(
                 cursor = cursor,
@@ -138,7 +138,6 @@ object ReminderExchange {
                 id = UUID.randomUUID().toString(),
                 text = reminderText,
                 schedule = ScheduleSettings(
-                    notificationsPerWeek = notificationsPerWeek,
                     notificationsPerDay = notificationsPerDay,
                 ),
             )
@@ -167,21 +166,6 @@ object ReminderExchange {
                 DayOfWeek.valueOf(rawDay.trim().uppercase())
             }
             .toSet()
-    }
-
-    private fun snapWeeklyCount(
-        value: Int,
-        notificationsPerDay: Int,
-    ): Int {
-        val minValue = notificationsPerDay
-        val maxValue = notificationsPerDay * 7
-        val coerced = value.coerceIn(minValue, maxValue)
-        val remainder = coerced % notificationsPerDay
-        return if (remainder == 0) {
-            coerced
-        } else {
-            (coerced + notificationsPerDay - remainder).coerceAtMost(maxValue)
-        }
     }
 
     private class LineCursor(private val lines: List<String>) {

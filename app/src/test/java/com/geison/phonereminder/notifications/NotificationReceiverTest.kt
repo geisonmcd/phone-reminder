@@ -6,51 +6,45 @@ import org.junit.Test
 
 class NotificationReceiverTest {
     @Test
-    fun adjustScheduleFrequencyDecreasesByDailyStep() {
+    fun adjustScheduleFrequencyHalvesDailyCount() {
         val adjusted = adjustScheduleFrequency(
             schedule = ScheduleSettings(
-                notificationsPerWeek = 6,
-                notificationsPerDay = 2,
+                notificationsPerDay = 10,
             ),
             adjustment = FrequencyAdjustment.LESS_OFTEN,
         )
 
-        assertEquals(4, adjusted.notificationsPerWeek)
-        assertEquals(2, adjusted.notificationsPerDay)
+        assertEquals(5, adjusted.notificationsPerDay)
     }
 
     @Test
-    fun adjustScheduleFrequencyIncreasesByDailyStep() {
+    fun adjustScheduleFrequencyDoublesDailyCount() {
         val adjusted = adjustScheduleFrequency(
             schedule = ScheduleSettings(
-                notificationsPerWeek = 4,
-                notificationsPerDay = 2,
+                notificationsPerDay = 5,
             ),
             adjustment = FrequencyAdjustment.MORE_OFTEN,
         )
 
-        assertEquals(6, adjusted.notificationsPerWeek)
-        assertEquals(2, adjusted.notificationsPerDay)
+        assertEquals(10, adjusted.notificationsPerDay)
     }
 
     @Test
     fun adjustScheduleFrequencyClampsToValidRange() {
         val lessOften = adjustScheduleFrequency(
             schedule = ScheduleSettings(
-                notificationsPerWeek = 1,
                 notificationsPerDay = 1,
             ),
             adjustment = FrequencyAdjustment.LESS_OFTEN,
         )
         val moreOften = adjustScheduleFrequency(
             schedule = ScheduleSettings(
-                notificationsPerWeek = 7,
-                notificationsPerDay = 1,
+                notificationsPerDay = 50,
             ),
             adjustment = FrequencyAdjustment.MORE_OFTEN,
         )
 
-        assertEquals(1, lessOften.notificationsPerWeek)
-        assertEquals(7, moreOften.notificationsPerWeek)
+        assertEquals(1, lessOften.notificationsPerDay)
+        assertEquals(50, moreOften.notificationsPerDay)
     }
 }

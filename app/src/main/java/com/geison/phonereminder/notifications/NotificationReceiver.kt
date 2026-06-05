@@ -94,17 +94,12 @@ internal fun adjustScheduleFrequency(
     adjustment: FrequencyAdjustment,
 ): ScheduleSettings {
     val notificationsPerDay = schedule.notificationsPerDay.coerceIn(1, MAX_NOTIFICATIONS_PER_DAY)
-    val currentNotificationsPerWeek = schedule.notificationsPerWeek.coerceIn(
-        notificationsPerDay,
-        notificationsPerDay * 7,
-    )
-    val adjustedNotificationsPerWeek = when (adjustment) {
-        FrequencyAdjustment.LESS_OFTEN -> currentNotificationsPerWeek - notificationsPerDay
-        FrequencyAdjustment.MORE_OFTEN -> currentNotificationsPerWeek + notificationsPerDay
-    }.coerceIn(notificationsPerDay, notificationsPerDay * 7)
+    val adjustedNotificationsPerDay = when (adjustment) {
+        FrequencyAdjustment.LESS_OFTEN -> (notificationsPerDay / 2).coerceAtLeast(1)
+        FrequencyAdjustment.MORE_OFTEN -> (notificationsPerDay * 2).coerceAtMost(MAX_NOTIFICATIONS_PER_DAY)
+    }
 
     return schedule.copy(
-        notificationsPerWeek = adjustedNotificationsPerWeek,
-        notificationsPerDay = notificationsPerDay,
+        notificationsPerDay = adjustedNotificationsPerDay,
     )
 }

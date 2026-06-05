@@ -12,6 +12,7 @@
     <string name="message_unknown_error">Erro desconhecido.</string>
     <string name="message_google_drive_sign_in_cancelled">Login do Google cancelado.</string>
     <string name="message_google_drive_sign_in_failed">Falha no login do Google.</string>
+    <string name="message_google_drive_sign_in_failed_with_code">Falha no login do Google. Código de status: %1$d.</string>
     <string name="message_google_drive_no_backup_found">Nenhum backup encontrado no Google Drive.</string>
     <string name="message_google_drive_backup_failed">Falha no backup do Google Drive: %1$s</string>
     <string name="message_google_drive_restore_failed">Falha na restauração do Google Drive: %1$s</string>
@@ -62,6 +63,8 @@
     <string name="action_google_drive_import">Importar do Google Drive</string>
     <string name="notification_action_less_often">Menos vezes</string>
     <string name="notification_action_more_often">Mais vezes</string>
+    <string name="notification_action_schedule_less">- %1$d/dia</string>
+    <string name="notification_action_schedule_more">+ %1$d/dia</string>
 
     <string name="empty_no_reminders_title">Nenhum lembrete ainda</string>
     <string name="empty_no_reminders_body">Crie seu primeiro lembrete.</string>
@@ -108,22 +111,17 @@
     <string name="dialog_import_replace_title">Importar lembretes?</string>
     <string name="dialog_import_replace_body">Este arquivo tem %2$d lembretes. Mescle com os %1$d lembretes atuais ou substitua a lista atual.</string>
     <string name="label_reminder_text">Texto do lembrete</string>
-    <string name="reminder_text_required">O texto do lembrete é obrigatório.</string>
     <string name="label_reminder">Lembrete</string>
-    <string name="example_reminder">Exemplo: Proteja sua atenção.</string>
-    <string name="notification_length_count">%1$d/%2$d caracteres antes do aviso de tamanho da notificação</string>
-    <string name="notification_length_body">Textos longos podem ser cortados.</string>
     <string name="info_title">Informações</string>
     <string name="created_at">Criado em %1$s</string>
     <string name="schedule_title">Agenda</string>
-    <string name="schedule_body">Totais semanais mudam conforme a quantidade diária.</string>
-    <string name="label_notifications_per_week">Notificações por semana</string>
+    <string name="schedule_body">Defina quantos lembretes podem aparecer em cada dia selecionado.</string>
     <string name="label_notifications_per_day">Notificações por dia</string>
     <string name="actions_title">Ações</string>
     <string name="saved_reminders_title">Lembretes salvos</string>
     <string name="filter_reminders_label">Filtrar lembretes</string>
-    <string name="schedule_summary">%1$d/semana, %2$d/dia</string>
-    <string name="schedule_summary_full">%1$d lembretes/semana, máx %2$d/dia, entre %3$s e %4$s %5$s.</string>
+    <string name="schedule_summary">%1$d/dia</string>
+    <string name="schedule_summary_full">%1$d/dia, entre %2$s e %3$s %4$s.</string>
     <string name="schedule_summary_all_days">todos os dias</string>
     <string name="notification_rationale_title">Permitir notificações?</string>
     <string name="notification_rationale_body">As notificações permitem que os lembretes apareçam na hora certa durante o dia. Sem elas, os lembretes não serão exibidos.</string>

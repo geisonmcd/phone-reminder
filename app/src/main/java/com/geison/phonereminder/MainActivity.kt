@@ -23,7 +23,6 @@ import androidx.compose.ui.res.stringResource
 import androidx.core.content.ContextCompat
 import com.geison.phonereminder.diagnostics.Diagnostics
 import com.geison.phonereminder.notifications.NotificationChannels
-import com.geison.phonereminder.notifications.NotificationScheduler
 import com.geison.phonereminder.ui.ReminderApp
 
 class MainActivity : ComponentActivity() {
@@ -39,7 +38,7 @@ class MainActivity : ComponentActivity() {
         Diagnostics.setKey("opened_from_notification", pendingOpenReminderId != null)
         enableEdgeToEdge()
         NotificationChannels.ensureCreated(this)
-        NotificationScheduler.scheduleToday(this)
+        viewModel.rescheduleNow()
 
         setContent {
             val requestPermissionLauncher = rememberLauncherForActivityResult(

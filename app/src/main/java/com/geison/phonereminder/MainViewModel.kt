@@ -21,6 +21,8 @@ import com.geison.phonereminder.notifications.NotificationScheduler
 import com.geison.phonereminder.notifications.ReminderNotifier
 import com.google.android.gms.auth.api.signin.GoogleSignIn
 import com.google.android.gms.common.api.ApiException
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
@@ -34,6 +36,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val mutableOpenReminderRequest = MutableStateFlow<String?>(null)
     private val mutableGoogleDriveMessage = MutableStateFlow<String?>(null)
     private val mutableGoogleDriveRestorePreview = MutableStateFlow<ImportPreviewResult.Ready?>(null)
+    private var scheduleNotificationsJob: Job? = null
 
     val state = repository.state
     val openReminderRequest = mutableOpenReminderRequest.asStateFlow()
@@ -46,14 +49,13 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         val reminderId = repository.addReminder(text)
         if (reminderId != null) {
             Diagnostics.setKey("reminder_count", state.value.reminders.size)
-            NotificationScheduler.scheduleToday(getApplication())
+            scheduleNotifications()
         }
         return reminderId
     }
 
     fun addReminder(
         text: String,
-        notificationsPerWeek: Int,
         notificationsPerDay: Int,
         createdAtEpochMillis: Long,
     ): String? {
@@ -63,21 +65,16 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
 
         val safeNotificationsPerDay = notificationsPerDay.coerceIn(1, MAX_NOTIFICATIONS_PER_DAY)
-        val safeNotificationsPerWeek = snapWeeklyCount(
-            value = notificationsPerWeek,
-            notificationsPerDay = safeNotificationsPerDay,
-        )
         val reminderId = repository.addReminder(
             text = trimmedText,
             schedule = ScheduleSettings(
-                notificationsPerWeek = safeNotificationsPerWeek,
                 notificationsPerDay = safeNotificationsPerDay,
             ),
             createdAtEpochMillis = createdAtEpochMillis,
         )
         if (reminderId != null) {
             Diagnostics.setKey("reminder_count", state.value.reminders.size)
-            NotificationScheduler.scheduleToday(getApplication())
+            scheduleNotifications()
         }
         return reminderId
     }
@@ -85,7 +82,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun deleteReminder(id: String) {
         repository.deleteReminder(id)
         Diagnostics.setKey("reminder_count", state.value.reminders.size)
-        NotificationScheduler.scheduleToday(getApplication())
+        scheduleNotifications()
     }
 
     fun findReminder(id: String): ReminderItem? {
@@ -95,7 +92,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun saveReminder(
         reminderId: String,
         text: String,
-        notificationsPerWeek: Int,
         notificationsPerDay: Int,
     ) {
         val trimmedText = text.trim()
@@ -104,21 +100,16 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
 
         val safeNotificationsPerDay = notificationsPerDay.coerceIn(1, MAX_NOTIFICATIONS_PER_DAY)
-        val safeNotificationsPerWeek = snapWeeklyCount(
-            value = notificationsPerWeek,
-            notificationsPerDay = safeNotificationsPerDay,
-        )
 
         repository.updateReminder(reminderId) { current ->
             current.copy(
                 text = trimmedText,
                 schedule = ScheduleSettings(
-                    notificationsPerWeek = safeNotificationsPerWeek,
                     notificationsPerDay = safeNotificationsPerDay,
                 ),
             )
         }
-        NotificationScheduler.scheduleToday(getApplication())
+        scheduleNotifications()
     }
 
     fun updateNotificationWindow(
@@ -131,7 +122,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             startHour = safeStartHour,
             endHour = safeEndHour,
         )
-        NotificationScheduler.scheduleToday(getApplication())
+        scheduleNotifications()
     }
 
     fun updateReminderDay(
@@ -145,7 +136,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             currentDays - dayOfWeek
         }
         repository.updateReminderDays(updatedDays)
-        NotificationScheduler.scheduleToday(getApplication())
+        scheduleNotifications()
     }
 
     fun testReminder(
@@ -173,7 +164,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun rescheduleNow() {
-        NotificationScheduler.scheduleToday(getApplication())
+        scheduleNotifications()
     }
 
     fun getGoogleDriveSignInIntent() = googleDriveManager.getSignInIntent()
@@ -205,9 +196,13 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             val message = if (e.statusCode == com.google.android.gms.auth.api.signin.GoogleSignInStatusCodes.SIGN_IN_CANCELLED) {
                 getApplication<Application>().getString(R.string.message_google_drive_sign_in_cancelled)
             } else {
-                getApplication<Application>().getString(R.string.message_google_drive_sign_in_failed)
+                getApplication<Application>().getString(
+                    R.string.message_google_drive_sign_in_failed_with_code,
+                    e.statusCode,
+                )
             }
             mutableGoogleDriveMessage.value = message
+            Diagnostics.setKey("google_drive_sign_in_status_code", e.statusCode)
             Diagnostics.recordNonFatal(
                 area = "google_drive_sign_in_failed",
                 throwable = e,
@@ -421,21 +416,14 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         Diagnostics.setKey("reminder_count", totalReminderCount)
         Diagnostics.setKey("last_import_reminder_count", importedReminderCount)
         Diagnostics.setKey("last_import_mode", mode)
-        NotificationScheduler.scheduleToday(getApplication())
+        scheduleNotifications()
     }
 
-    private fun snapWeeklyCount(
-        value: Int,
-        notificationsPerDay: Int,
-    ): Int {
-        val minValue = notificationsPerDay
-        val maxValue = notificationsPerDay * 7
-        val coerced = value.coerceIn(minValue, maxValue)
-        val remainder = coerced % notificationsPerDay
-        return if (remainder == 0) {
-            coerced
-        } else {
-            (coerced + notificationsPerDay - remainder).coerceAtMost(maxValue)
+    private fun scheduleNotifications() {
+        val application = getApplication<Application>()
+        scheduleNotificationsJob?.cancel()
+        scheduleNotificationsJob = viewModelScope.launch(Dispatchers.IO) {
+            NotificationScheduler.scheduleToday(application)
         }
     }
 

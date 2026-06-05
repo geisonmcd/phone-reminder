@@ -7,24 +7,21 @@ import android.content.Intent
 import com.geison.phonereminder.diagnostics.Diagnostics
 import com.geison.phonereminder.data.AppState
 import com.geison.phonereminder.data.MAX_NOTIFICATIONS_PER_DAY
-import com.geison.phonereminder.data.MAX_NOTIFICATIONS_PER_WEEK
 import com.geison.phonereminder.data.ReminderItem
 import com.geison.phonereminder.data.ReminderStorage
 import java.time.Duration
-import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.LocalTime
 import java.time.ZoneId
-import java.time.temporal.TemporalAdjusters
-import kotlin.math.min
 import kotlin.random.Random
 
 object NotificationScheduler {
     private const val REMINDER_REQUEST_CODE_BASE = 2_000
     private const val REFRESH_REQUEST_CODE = 9_000
     private const val SCHEDULE_HORIZON_DAYS = 7
-    private const val MAX_SCHEDULED_ALARMS = 2_048
+    private const val MAX_SCHEDULED_ALARMS = 450
+    private const val LEGACY_ALARM_CANCEL_COUNT = 2_048
     private val notificationWindowMillis = Duration.ofMinutes(10).toMillis()
 
     fun scheduleToday(context: Context) {
@@ -48,32 +45,43 @@ object NotificationScheduler {
         val now = LocalDateTime.now()
         val upcomingPlans = dayPlan.filter { it.triggerAt.isAfter(now.plusMinutes(1)) }
         Diagnostics.setKey("scheduled_alarm_count", upcomingPlans.size)
-        upcomingPlans
-            .forEachIndexed { index, plan ->
-                val intent = Intent(context, NotificationReceiver::class.java)
-                    .setAction(NotificationReceiver.ACTION_SHOW_REMINDER)
-                    .putExtra(NotificationReceiver.EXTRA_REMINDER_ID, plan.reminder.id)
-                    .putExtra(NotificationReceiver.EXTRA_REMINDER_TEXT, plan.reminder.text)
-                    .putExtra(NotificationReceiver.EXTRA_NOTIFICATION_ID, plan.notificationId)
+        upcomingPlans.forEachIndexed { index, plan ->
+            val intent = Intent(context, NotificationReceiver::class.java)
+                .setAction(NotificationReceiver.ACTION_SHOW_REMINDER)
+                .putExtra(NotificationReceiver.EXTRA_REMINDER_ID, plan.reminder.id)
+                .putExtra(NotificationReceiver.EXTRA_REMINDER_TEXT, plan.reminder.text)
+                .putExtra(NotificationReceiver.EXTRA_NOTIFICATION_ID, plan.notificationId)
 
-                val pendingIntent = PendingIntent.getBroadcast(
-                    context,
-                    REMINDER_REQUEST_CODE_BASE + index,
-                    intent,
-                    PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
-                )
+            val pendingIntent = PendingIntent.getBroadcast(
+                context,
+                REMINDER_REQUEST_CODE_BASE + index,
+                intent,
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+            )
 
+            runCatching {
                 alarmManager.setWindow(
                     AlarmManager.RTC_WAKEUP,
                     plan.triggerAt.toEpochMillis(),
                     notificationWindowMillis,
                     pendingIntent,
                 )
+            }.onFailure { error ->
+                Diagnostics.recordNonFatal(
+                    area = "schedule_alarm_failed",
+                    throwable = error,
+                    keys = mapOf(
+                        "scheduled_alarm_index" to index.toString(),
+                        "planned_alarm_count" to upcomingPlans.size.toString(),
+                    ),
+                )
+                return@forEachIndexed
             }
+        }
     }
 
     private fun cancelReminderAlarms(context: Context, alarmManager: AlarmManager) {
-        repeat(MAX_SCHEDULED_ALARMS) { index ->
+        repeat(LEGACY_ALARM_CANCEL_COUNT) { index ->
             val pendingIntent = PendingIntent.getBroadcast(
                 context,
                 REMINDER_REQUEST_CODE_BASE + index,
@@ -185,21 +193,7 @@ object NotificationScheduler {
             return emptyList()
         }
 
-        val weekStart = day.with(TemporalAdjusters.previousOrSame(java.time.DayOfWeek.MONDAY))
-        val dayIndex = (day.toEpochDay() - weekStart.toEpochDay()).toInt()
-        val notificationsPerDay = settings.notificationsPerDay.coerceIn(1, MAX_NOTIFICATIONS_PER_DAY)
-        val notificationsPerWeek = settings.notificationsPerWeek.coerceIn(
-            notificationsPerDay,
-            min(MAX_NOTIFICATIONS_PER_WEEK, notificationsPerDay * 7),
-        )
-        val remindersToday = countScheduledOccurrencesForDay(
-            weekStart = weekStart,
-            reminder = reminder,
-            reminderDays = state.reminderDays,
-            notificationsPerWeek = notificationsPerWeek,
-            notificationsPerDay = notificationsPerDay,
-            dayIndex = dayIndex,
-        )
+        val remindersToday = settings.notificationsPerDay.coerceIn(1, MAX_NOTIFICATIONS_PER_DAY)
 
         return List(remindersToday) {
             ReminderOccurrence(
@@ -208,37 +202,6 @@ object NotificationScheduler {
                 endMinuteExclusive = endMinuteExclusive,
             )
         }
-    }
-
-    private fun countScheduledOccurrencesForDay(
-        weekStart: LocalDate,
-        reminder: ReminderItem,
-        reminderDays: Set<DayOfWeek>,
-        notificationsPerWeek: Int,
-        notificationsPerDay: Int,
-        dayIndex: Int,
-    ): Int {
-        val allowedSlots = DayOfWeek.values()
-            .mapIndexedNotNull { index, dayOfWeek ->
-                if (dayOfWeek in reminderDays) index else null
-            }
-        if (allowedSlots.isEmpty()) {
-            return 0
-        }
-
-        val activeDays = (notificationsPerWeek / notificationsPerDay).coerceIn(1, allowedSlots.size)
-        val slots = allowedSlots.toMutableList()
-        val weekSeed = buildWeekSeed(weekStart, reminder)
-        slots.shuffle(Random(weekSeed.toInt()))
-        return if (dayIndex in slots.take(activeDays)) notificationsPerDay else 0
-    }
-
-    private fun buildWeekSeed(
-        weekStart: LocalDate,
-        reminder: ReminderItem,
-    ): Long {
-        val reminderHash = "${reminder.id}:${reminder.text}:${reminder.schedule}".hashCode()
-        return weekStart.toEpochDay() xor reminderHash.toLong()
     }
 
     private fun LocalDateTime.toEpochMillis(): Long {

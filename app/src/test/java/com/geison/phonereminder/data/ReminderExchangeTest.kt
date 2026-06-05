@@ -19,18 +19,12 @@ class ReminderExchangeTest {
                     ReminderItem(
                         id = "ignored-id",
                         text = "First reminder",
-                        schedule = ScheduleSettings(
-                            notificationsPerWeek = 3,
-                            notificationsPerDay = 1,
-                        ),
+                        schedule = ScheduleSettings(notificationsPerDay = 1),
                     ),
                     ReminderItem(
                         id = "ignored-id-too",
                         text = "Second reminder\nwith two lines",
-                        schedule = ScheduleSettings(
-                            notificationsPerWeek = 6,
-                            notificationsPerDay = 2,
-                        ),
+                        schedule = ScheduleSettings(notificationsPerDay = 2),
                     ),
                 ),
             ),
@@ -51,7 +45,6 @@ class ReminderExchangeTest {
             Reminder:
             First reminder
             End reminder
-            Notifications per week: 3
             Notifications per day: 1
 
             ---
@@ -59,7 +52,6 @@ class ReminderExchangeTest {
             Second reminder
             with two lines
             End reminder
-            Notifications per week: 6
             Notifications per day: 2
             """.trimIndent() + "\n",
             exported,
@@ -79,18 +71,12 @@ class ReminderExchangeTest {
                     ReminderItem(
                         id = "first",
                         text = "Protect your attention.",
-                        schedule = ScheduleSettings(
-                            notificationsPerWeek = 4,
-                            notificationsPerDay = 1,
-                        ),
+                        schedule = ScheduleSettings(notificationsPerDay = 1),
                     ),
                     ReminderItem(
                         id = "second",
                         text = "Slow down before reacting.\nTake one breath first.",
-                        schedule = ScheduleSettings(
-                            notificationsPerWeek = 4,
-                            notificationsPerDay = 2,
-                        ),
+                        schedule = ScheduleSettings(notificationsPerDay = 2),
                     ),
                 ),
             ),
@@ -106,10 +92,8 @@ class ReminderExchangeTest {
         assertEquals(8, imported.notificationWindow.startHour)
         assertEquals(19, imported.notificationWindow.endHour)
         assertEquals("Protect your attention.", imported.reminders[0].text)
-        assertEquals(4, imported.reminders[0].schedule.notificationsPerWeek)
         assertEquals(1, imported.reminders[0].schedule.notificationsPerDay)
         assertEquals("Slow down before reacting.\nTake one breath first.", imported.reminders[1].text)
-        assertEquals(4, imported.reminders[1].schedule.notificationsPerWeek)
         assertEquals(2, imported.reminders[1].schedule.notificationsPerDay)
         assertTrue(imported.reminders.all { it.id.isNotBlank() })
     }
@@ -127,7 +111,6 @@ class ReminderExchangeTest {
             Reminder:
             Protect your attention.
             End reminder
-            Notifications per week: 3
             Notifications per day: 1
             """.trimIndent(),
         )
@@ -146,13 +129,32 @@ class ReminderExchangeTest {
             Reminder:
             Deep work.
             End reminder
-            Notifications per week: 350
             Notifications per day: 50
             """.trimIndent(),
         )
 
         assertEquals(50, imported.reminders.single().schedule.notificationsPerDay)
-        assertEquals(350, imported.reminders.single().schedule.notificationsPerWeek)
+    }
+
+    @Test
+    fun importSkipsObsoleteNotificationCountBeforeDailyCount() {
+        val imported = ReminderExchange.import(
+            """
+            Smart Random Reminder Export v1
+
+            Default start hour: 9
+            Default end hour: 20
+
+            ---
+            Reminder:
+            Review your priorities.
+            End reminder
+            Notifications per old total: 52
+            Notifications per day: 26
+            """.trimIndent(),
+        )
+
+        assertEquals(26, imported.reminders.single().schedule.notificationsPerDay)
     }
 
     @Test
@@ -171,7 +173,6 @@ class ReminderExchangeTest {
             Reminder:
             Remain in me and I'll remain in you
             End reminder
-            Notifications per week: 1
             Notifications per day: 1
             """.trimIndent(),
         )
@@ -179,7 +180,6 @@ class ReminderExchangeTest {
         assertEquals(7, imported.notificationWindow.startHour)
         assertEquals(22, imported.notificationWindow.endHour)
         assertEquals("Remain in me and I'll remain in you", imported.reminders.single().text)
-        assertEquals(1, imported.reminders.single().schedule.notificationsPerWeek)
         assertEquals(1, imported.reminders.single().schedule.notificationsPerDay)
     }
 
@@ -197,7 +197,6 @@ class ReminderExchangeTest {
             Reminder:
             First reminder
             End reminder
-            Notifications per week: 2
             Notifications per day: 1
             Created at: 123456789
             Color: blue
@@ -206,7 +205,6 @@ class ReminderExchangeTest {
             Reminder:
             Second reminder
             End reminder
-            Notifications per week: 4
             Notifications per day: 2
             Stable id: future-id
             """.trimIndent(),
@@ -214,10 +212,8 @@ class ReminderExchangeTest {
 
         assertEquals(2, imported.reminders.size)
         assertEquals("First reminder", imported.reminders[0].text)
-        assertEquals(2, imported.reminders[0].schedule.notificationsPerWeek)
         assertEquals(1, imported.reminders[0].schedule.notificationsPerDay)
         assertEquals("Second reminder", imported.reminders[1].text)
-        assertEquals(4, imported.reminders[1].schedule.notificationsPerWeek)
         assertEquals(2, imported.reminders[1].schedule.notificationsPerDay)
     }
 }

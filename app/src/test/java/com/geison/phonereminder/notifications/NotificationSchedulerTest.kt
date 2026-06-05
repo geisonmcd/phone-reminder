@@ -24,7 +24,6 @@ class NotificationSchedulerTest {
                     id = "daily",
                     text = "Stay focused.",
                     schedule = ScheduleSettings(
-                        notificationsPerWeek = 7,
                         notificationsPerDay = 1,
                     ),
                 ),
@@ -110,7 +109,6 @@ class NotificationSchedulerTest {
                     id = "intense",
                     text = "Stay on task.",
                     schedule = ScheduleSettings(
-                        notificationsPerWeek = 350,
                         notificationsPerDay = 50,
                     ),
                 ),
@@ -127,6 +125,43 @@ class NotificationSchedulerTest {
     }
 
     @Test
+    fun createSchedulePlanUsesDailyCountOnEachConfiguredDay() {
+        val startDay = LocalDate.of(2026, 4, 13) // Monday
+        val state = AppState(
+            reminderDays = setOf(DayOfWeek.MONDAY, DayOfWeek.WEDNESDAY),
+            notificationWindow = NotificationWindowSettings(
+                startHour = 9,
+                endHour = 21,
+            ),
+            reminders = listOf(
+                ReminderItem(
+                    id = "independent-counts",
+                    text = "Stay aware.",
+                    schedule = ScheduleSettings(
+                        notificationsPerDay = 3,
+                    ),
+                ),
+            ),
+        )
+
+        val plan = NotificationScheduler.createSchedulePlan(
+            state = state,
+            startDay = startDay,
+            totalDays = 7,
+        )
+
+        assertEquals(6, plan.size)
+        assertEquals(
+            setOf(DayOfWeek.MONDAY, DayOfWeek.WEDNESDAY),
+            plan.map { it.triggerAt.dayOfWeek }.toSet(),
+        )
+        assertEquals(
+            listOf(3, 3),
+            plan.groupingBy { it.triggerAt.toLocalDate() }.eachCount().values.sorted(),
+        )
+    }
+
+    @Test
     fun createSchedulePlanOnlyUsesConfiguredReminderDays() {
         val startDay = LocalDate.of(2026, 4, 13) // Monday
         val state = AppState(
@@ -140,7 +175,6 @@ class NotificationSchedulerTest {
                     id = "limited-days",
                     text = "Stay focused.",
                     schedule = ScheduleSettings(
-                        notificationsPerWeek = 7,
                         notificationsPerDay = 1,
                     ),
                 ),
@@ -164,7 +198,6 @@ class NotificationSchedulerTest {
             id = id,
             text = "Reminder $id",
             schedule = ScheduleSettings(
-                notificationsPerWeek = 7,
                 notificationsPerDay = 1,
             ),
         )
