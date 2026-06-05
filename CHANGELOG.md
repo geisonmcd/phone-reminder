@@ -1,5 +1,6 @@
 # Changelog
 
+- 2026-06-05 — Focused the reminder text field automatically when creating a new reminder.
 - 2026-06-05 — Added a build-type feature flag so Google Drive backup stays enabled locally and hidden in Play releases.
 - 2026-06-05 — Simplified daily reminder scheduling, fixed alarm-limit crashes, and refined config day styling.
 - 2025-05-29 — Disabled save FAB when text is blank; added inline "Reminder text is required." validation message.

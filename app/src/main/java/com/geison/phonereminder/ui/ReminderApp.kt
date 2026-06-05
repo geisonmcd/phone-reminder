@@ -60,15 +60,18 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.core.app.NotificationManagerCompat
-import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.geison.phonereminder.BuildConfig
 import com.geison.phonereminder.ImportPreviewResult
@@ -824,6 +827,15 @@ private fun ReminderEditScreen(
     }
     var showDeleteConfirmation by rememberSaveable(reminder.id) { mutableStateOf(false) }
     val isNotificationLengthWarning = text.length > NOTIFICATION_TEXT_WARNING_LIMIT
+    val textFocusRequester = remember { FocusRequester() }
+    val keyboardController = LocalSoftwareKeyboardController.current
+
+    LaunchedEffect(isNewReminder, reminder.id) {
+        if (isNewReminder) {
+            textFocusRequester.requestFocus()
+            keyboardController?.show()
+        }
+    }
 
     if (showDeleteConfirmation) {
         AlertDialog(
@@ -899,7 +911,9 @@ private fun ReminderEditScreen(
                 OutlinedTextField(
                     value = text,
                     onValueChange = { text = it },
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .focusRequester(textFocusRequester),
                     minLines = 4,
                     label = { Text(stringResource(R.string.label_reminder)) },
                     colors = appTextFieldColors(),
