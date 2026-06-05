@@ -36,6 +36,13 @@ fun releaseVersionName(): String {
         ?: "1.0.0"
 }
 
+fun googleDriveBackupEnabled(defaultValue: Boolean): Boolean {
+    return System.getenv("GOOGLE_DRIVE_BACKUP_ENABLED")
+        ?.takeIf { it.isNotBlank() }
+        ?.toBooleanStrictOrNull()
+        ?: defaultValue
+}
+
 android {
     namespace = "com.geison.phonereminder"
     compileSdk = 35
@@ -76,13 +83,21 @@ android {
 
     buildTypes {
         debug {
-            buildConfigField("boolean", "GOOGLE_DRIVE_BACKUP_ENABLED", "true")
+            buildConfigField(
+                "boolean",
+                "GOOGLE_DRIVE_BACKUP_ENABLED",
+                googleDriveBackupEnabled(defaultValue = true).toString(),
+            )
         }
 
         release {
             isMinifyEnabled = false
             signingConfig = signingConfigs.findByName("release")
-            buildConfigField("boolean", "GOOGLE_DRIVE_BACKUP_ENABLED", "false")
+            buildConfigField(
+                "boolean",
+                "GOOGLE_DRIVE_BACKUP_ENABLED",
+                googleDriveBackupEnabled(defaultValue = false).toString(),
+            )
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro",

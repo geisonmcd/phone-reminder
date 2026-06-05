@@ -67,6 +67,7 @@ jobs:
         env:
           VERSION_CODE: ${{ inputs.versionCode }}
           VERSION_NAME: ${{ inputs.versionName }}
+          GOOGLE_DRIVE_BACKUP_ENABLED: "true"
           RELEASE_STORE_FILE: ${{ runner.temp }}/release.keystore
           RELEASE_STORE_PASSWORD: ${{ secrets.RELEASE_STORE_PASSWORD }}
           RELEASE_KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
