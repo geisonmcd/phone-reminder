@@ -1,0 +1,125 @@
+name: Android Production Promotion
+
+on:
+  workflow_dispatch:
+    inputs:
+      versionCode:
+        description: Existing Play versionCode to promote from internal testing.
+        required: true
+        type: string
+      versionName:
+        description: User-visible version name for the production release.
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: android-production-promotion
+  cancel-in-progress: false
+
+jobs:
+  promote:
+    name: Promote internal version to production
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install Google API client
+        run: npm install googleapis@144
+
+      - name: Promote version to production
+        env:
+          PLAY_SERVICE_ACCOUNT_JSON: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
+          VERSION_CODE: ${{ inputs.versionCode }}
+          VERSION_NAME: ${{ inputs.versionName }}
+          PACKAGE_NAME: com.geison.smartrandomreminder
+        run: |
+          node <<'NODE'
+          const { google } = require("googleapis");
+
+          async function main() {
+            const packageName = process.env.PACKAGE_NAME;
+            const versionCode = process.env.VERSION_CODE;
+            const versionName = process.env.VERSION_NAME;
+            const serviceAccountJson = process.env.PLAY_SERVICE_ACCOUNT_JSON;
+
+            if (!serviceAccountJson) {
+              throw new Error("PLAY_SERVICE_ACCOUNT_JSON is not set.");
+            }
+
+            const serviceAccount = JSON.parse(serviceAccountJson);
+            const auth = new google.auth.JWT({
+              email: serviceAccount.client_email,
+              key: serviceAccount.private_key,
+              scopes: ["https://www.googleapis.com/auth/androidpublisher"],
+            });
+            const androidpublisher = google.androidpublisher({
+              version: "v3",
+              auth,
+            });
+
+            const edit = await androidpublisher.edits.insert({ packageName });
+            const editId = edit.data.id;
+            console.log(`Created edit ${editId}`);
+
+            const internalTrack = await androidpublisher.edits.tracks.get({
+              packageName,
+              editId,
+              track: "internal",
+            });
+            const internalReleases = internalTrack.data.releases || [];
+            const internalHasVersion = internalReleases.some((release) =>
+              (release.versionCodes || []).map(String).includes(String(versionCode)),
+            );
+            if (!internalHasVersion) {
+              throw new Error(`Version code ${versionCode} was not found on the internal track.`);
+            }
+
+            const productionTrack = await androidpublisher.edits.tracks.get({
+              packageName,
+              editId,
+              track: "production",
+            }).catch((error) => {
+              if (error.code === 404) {
+                return { data: { releases: [] } };
+              }
+              throw error;
+            });
+            console.log(`Current production releases: ${JSON.stringify(productionTrack.data.releases || [])}`);
+
+            const releaseName = `${versionName} (${versionCode})`;
+            await androidpublisher.edits.tracks.update({
+              packageName,
+              editId,
+              track: "production",
+              requestBody: {
+                track: "production",
+                releases: [
+                  {
+                    name: releaseName,
+                    versionCodes: [String(versionCode)],
+                    status: "completed",
+                  },
+                ],
+              },
+            });
+            console.log(`Promoted ${releaseName} to production`);
+
+            const committed = await androidpublisher.edits.commit({
+              packageName,
+              editId,
+            });
+            console.log(`Finished promoting to production: ${committed.data.id}`);
+          }
+
+          main().catch((error) => {
+            console.error(error);
+            process.exit(1);
+          });
+          NODE

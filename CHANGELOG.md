@@ -1,5 +1,6 @@
 # Changelog
 
+- 2026-06-06 — Added a manual production promotion workflow for promoting an existing internal testing version.
 - 2026-06-05 — Enabled Google Drive backup for internal and closed testing release builds while keeping production release builds disabled by default.
 - 2026-06-05 — Focused the reminder text field automatically when creating a new reminder.
 - 2026-06-05 — Added a build-type feature flag so Google Drive backup stays enabled locally and hidden in Play releases.
