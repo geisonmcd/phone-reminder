@@ -9,6 +9,7 @@ val DEFAULT_REMINDER_DAYS: Set<DayOfWeek> = DayOfWeek.values().toSet()
 @Serializable
 data class ScheduleSettings(
     val notificationsPerDay: Int = 1,
+    val reminderDays: Set<DayOfWeek>? = null,
 )
 
 @Serializable

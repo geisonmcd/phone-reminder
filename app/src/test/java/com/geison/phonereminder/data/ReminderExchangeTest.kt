@@ -137,6 +137,33 @@ class ReminderExchangeTest {
     }
 
     @Test
+    fun exportAndImportPreservesReminderDayOverride() {
+        val exported = ReminderExchange.export(
+            AppState(
+                reminderDays = setOf(DayOfWeek.MONDAY),
+                reminders = listOf(
+                    ReminderItem(
+                        id = "custom-days",
+                        text = "Custom schedule.",
+                        schedule = ScheduleSettings(
+                            notificationsPerDay = 2,
+                            reminderDays = setOf(DayOfWeek.WEDNESDAY, DayOfWeek.FRIDAY),
+                        ),
+                    ),
+                ),
+            ),
+        )
+
+        val imported = ReminderExchange.import(exported)
+
+        assertEquals(2, imported.reminders.single().schedule.notificationsPerDay)
+        assertEquals(
+            setOf(DayOfWeek.WEDNESDAY, DayOfWeek.FRIDAY),
+            imported.reminders.single().schedule.reminderDays,
+        )
+    }
+
+    @Test
     fun importSkipsObsoleteNotificationCountBeforeDailyCount() {
         val imported = ReminderExchange.import(
             """

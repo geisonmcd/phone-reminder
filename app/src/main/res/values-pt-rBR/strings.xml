@@ -116,6 +116,8 @@
     <string name="created_at">Criado em %1$s</string>
     <string name="schedule_title">Agenda</string>
     <string name="schedule_body">Defina quantos lembretes podem aparecer em cada dia selecionado.</string>
+    <string name="schedule_custom_days_title">Dias personalizados</string>
+    <string name="schedule_custom_days_body">Substitua os dias de lembrete das configurações.</string>
     <string name="label_notifications_per_day">Notificações por dia</string>
     <string name="actions_title">Ações</string>
     <string name="saved_reminders_title">Lembretes salvos</string>

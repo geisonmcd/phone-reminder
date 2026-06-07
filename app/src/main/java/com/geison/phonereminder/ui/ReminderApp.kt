@@ -47,6 +47,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.lightColorScheme
@@ -240,12 +241,13 @@ fun ReminderApp(
                         notificationWindow = state.notificationWindow,
                         reminderDays = state.reminderDays,
                         onBack = { selectedReminderId = null },
-                        onSave = { text, notificationsPerDay ->
+                        onSave = { text, notificationsPerDay, reminderDaysOverride ->
                             if (isCreatingNewReminder) {
                                 if (
                                     viewModel.addReminder(
                                         text = text,
                                         notificationsPerDay = notificationsPerDay,
+                                        reminderDays = reminderDaysOverride,
                                         createdAtEpochMillis = selectedReminder.createdAtEpochMillis,
                                     ) != null
                                 ) {
@@ -256,6 +258,7 @@ fun ReminderApp(
                                     reminderId = selectedReminder.id,
                                     text = text,
                                     notificationsPerDay = notificationsPerDay,
+                                    reminderDays = reminderDaysOverride,
                                 )
                                 selectedReminderId = null
                             }
@@ -677,6 +680,57 @@ private fun ReminderDaysCard(
 }
 
 @Composable
+private fun ReminderDaysOverrideControl(
+    enabled: Boolean,
+    reminderDays: Set<DayOfWeek>,
+    onEnabledChange: (Boolean) -> Unit,
+    onReminderDayChange: (DayOfWeek, Boolean) -> Unit,
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = stringResource(R.string.schedule_custom_days_title),
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.SemiBold,
+            )
+            Text(
+                text = stringResource(R.string.schedule_custom_days_body),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        Spacer(modifier = Modifier.width(12.dp))
+        Switch(
+            checked = enabled,
+            onCheckedChange = onEnabledChange,
+        )
+    }
+
+    if (enabled) {
+        Spacer(modifier = Modifier.height(8.dp))
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            reminderDayOptions().forEach { option ->
+                ReminderDayToggle(
+                    option = option,
+                    checked = option.dayOfWeek in reminderDays,
+                    onCheckedChange = { isChecked ->
+                        onReminderDayChange(option.dayOfWeek, isChecked)
+                    },
+                    modifier = Modifier.weight(1f),
+                )
+            }
+        }
+    }
+}
+
+@Composable
 private fun ReminderDayToggle(
     option: ReminderDayOption,
     checked: Boolean,
@@ -817,13 +871,19 @@ private fun ReminderEditScreen(
     notificationWindow: NotificationWindowSettings,
     reminderDays: Set<DayOfWeek>,
     onBack: () -> Unit,
-    onSave: (String, Int) -> Unit,
+    onSave: (String, Int, Set<DayOfWeek>?) -> Unit,
     onDelete: () -> Unit,
     onTestNotification: (String, String) -> Unit,
 ) {
     var text by rememberSaveable(reminder.id, reminder.text) { mutableStateOf(reminder.text) }
     var notificationsPerDay by rememberSaveable(reminder.id, reminder.schedule.notificationsPerDay) {
         mutableStateOf(reminder.schedule.notificationsPerDay)
+    }
+    var reminderDaysOverrideEnabled by rememberSaveable(reminder.id) {
+        mutableStateOf(reminder.schedule.reminderDays != null)
+    }
+    var customReminderDays by remember(reminder.id) {
+        mutableStateOf(reminder.schedule.reminderDays ?: reminderDays)
     }
     var showDeleteConfirmation by rememberSaveable(reminder.id) { mutableStateOf(false) }
     val isNotificationLengthWarning = text.length > NOTIFICATION_TEXT_WARNING_LIMIT
@@ -879,7 +939,11 @@ private fun ReminderEditScreen(
             FloatingActionButton(
                 onClick = {
                     if (text.isNotBlank()) {
-                        onSave(text, notificationsPerDay)
+                        onSave(
+                            text,
+                            notificationsPerDay,
+                            if (reminderDaysOverrideEnabled) customReminderDays else null,
+                        )
                     }
                 },
                 containerColor = if (text.isBlank()) {
@@ -951,12 +1015,33 @@ private fun ReminderEditScreen(
                     modifier = Modifier.padding(vertical = 8.dp),
                     color = MaterialTheme.colorScheme.outline.copy(alpha = 0.35f),
                 )
+                ReminderDaysOverrideControl(
+                    enabled = reminderDaysOverrideEnabled,
+                    reminderDays = customReminderDays,
+                    onEnabledChange = { isEnabled ->
+                        reminderDaysOverrideEnabled = isEnabled
+                        if (isEnabled && customReminderDays.isEmpty()) {
+                            customReminderDays = reminderDays
+                        }
+                    },
+                    onReminderDayChange = { dayOfWeek, isEnabled ->
+                        customReminderDays = if (isEnabled) {
+                            customReminderDays + dayOfWeek
+                        } else {
+                            customReminderDays - dayOfWeek
+                        }
+                    },
+                )
+                HorizontalDivider(
+                    modifier = Modifier.padding(vertical = 8.dp),
+                    color = MaterialTheme.colorScheme.outline.copy(alpha = 0.35f),
+                )
                 Text(
                     text = schedulePreview(
                         notificationsPerDay = notificationsPerDay,
                         startHour = notificationWindow.startHour,
                         endHour = notificationWindow.endHour,
-                        reminderDays = reminderDays,
+                        reminderDays = if (reminderDaysOverrideEnabled) customReminderDays else reminderDays,
                     ),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,

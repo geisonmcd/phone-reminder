@@ -193,6 +193,37 @@ class NotificationSchedulerTest {
         )
     }
 
+    @Test
+    fun createSchedulePlanUsesReminderDayOverrideInsteadOfGlobalDays() {
+        val startDay = LocalDate.of(2026, 4, 13) // Monday
+        val state = AppState(
+            reminderDays = setOf(DayOfWeek.MONDAY),
+            notificationWindow = NotificationWindowSettings(
+                startHour = 9,
+                endHour = 10,
+            ),
+            reminders = listOf(
+                ReminderItem(
+                    id = "custom-days",
+                    text = "Use custom days.",
+                    schedule = ScheduleSettings(
+                        notificationsPerDay = 1,
+                        reminderDays = setOf(DayOfWeek.WEDNESDAY),
+                    ),
+                ),
+            ),
+        )
+
+        val plan = NotificationScheduler.createSchedulePlan(
+            state = state,
+            startDay = startDay,
+            totalDays = 7,
+        )
+
+        assertEquals(1, plan.size)
+        assertEquals(DayOfWeek.WEDNESDAY, plan.single().triggerAt.dayOfWeek)
+    }
+
     private fun reminder(id: String): ReminderItem {
         return ReminderItem(
             id = id,

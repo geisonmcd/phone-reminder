@@ -112,6 +112,8 @@
     <string name="created_at">Created %1$s</string>
     <string name="schedule_title">Schedule</string>
     <string name="schedule_body">Set how many reminders can appear each selected day.</string>
+    <string name="schedule_custom_days_title">Custom days</string>
+    <string name="schedule_custom_days_body">Override the reminder days from settings.</string>
     <string name="label_notifications_per_day">Notifications per day</string>
     <string name="actions_title">Actions</string>
     <string name="saved_reminders_title">Saved reminders</string>

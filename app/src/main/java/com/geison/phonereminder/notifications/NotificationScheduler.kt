@@ -141,13 +141,12 @@ object NotificationScheduler {
         day: LocalDate,
         random: Random,
     ): List<ScheduledReminder> {
-        if (day.dayOfWeek !in state.reminderDays) {
-            return emptyList()
-        }
-
         val occurrences = state.reminders
             .asSequence()
             .filter { it.text.isNotBlank() }
+            .filter { reminder ->
+                day.dayOfWeek in (reminder.schedule.reminderDays ?: state.reminderDays)
+            }
             .flatMap { reminder -> buildOccurrencesForDay(reminder, state, day).asSequence() }
             .shuffled(random)
             .toList()

@@ -57,6 +57,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun addReminder(
         text: String,
         notificationsPerDay: Int,
+        reminderDays: Set<DayOfWeek>?,
         createdAtEpochMillis: Long,
     ): String? {
         val trimmedText = text.trim()
@@ -69,6 +70,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             text = trimmedText,
             schedule = ScheduleSettings(
                 notificationsPerDay = safeNotificationsPerDay,
+                reminderDays = reminderDays,
             ),
             createdAtEpochMillis = createdAtEpochMillis,
         )
@@ -93,6 +95,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         reminderId: String,
         text: String,
         notificationsPerDay: Int,
+        reminderDays: Set<DayOfWeek>?,
     ) {
         val trimmedText = text.trim()
         if (trimmedText.isEmpty()) {
@@ -106,6 +109,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 text = trimmedText,
                 schedule = ScheduleSettings(
                     notificationsPerDay = safeNotificationsPerDay,
+                    reminderDays = reminderDays,
                 ),
             )
         }

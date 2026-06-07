@@ -40,6 +40,11 @@ object ReminderExchange {
             lines += reminder.text.trimEnd()
             lines += reminderEnd
             lines += notificationsPerDayLabel + reminder.schedule.notificationsPerDay
+            reminder.schedule.reminderDays?.let { days ->
+                lines += reminderDaysLabel + days
+                    .sortedBy { it.value }
+                    .joinToString(",") { it.name }
+            }
         }
 
         return lines.joinToString("\n") + "\n"
@@ -126,19 +131,20 @@ object ReminderExchange {
                 1
             }
 
-            val importedDefaults = readOptionalReminderMetadata(
+            val importedMetadata = readOptionalReminderMetadata(
                 cursor = cursor,
                 defaultStartHour = defaultStartHour,
                 defaultEndHour = defaultEndHour,
             )
-            defaultStartHour = importedDefaults.startHour
-            defaultEndHour = importedDefaults.endHour
+            defaultStartHour = importedMetadata.startHour
+            defaultEndHour = importedMetadata.endHour
 
             reminders += ReminderItem(
                 id = UUID.randomUUID().toString(),
                 text = reminderText,
                 schedule = ScheduleSettings(
                     notificationsPerDay = notificationsPerDay,
+                    reminderDays = importedMetadata.reminderDays,
                 ),
             )
         }
@@ -204,9 +210,10 @@ object ReminderExchange {
         cursor: LineCursor,
         defaultStartHour: Int?,
         defaultEndHour: Int?,
-    ): ImportedDefaults {
+    ): ImportedReminderMetadata {
         var startHour = defaultStartHour
         var endHour = defaultEndHour
+        var reminderDays: Set<DayOfWeek>? = null
 
         while (true) {
             val line = cursor.peekLine()?.trimEnd() ?: break
@@ -231,18 +238,24 @@ object ReminderExchange {
                     endHour = endHour ?: importedEndHour
                 }
 
+                line.startsWith(reminderDaysLabel) -> {
+                    reminderDays = parseReminderDays(cursor.readLine().removePrefix(reminderDaysLabel))
+                }
+
                 else -> cursor.readLine()
             }
         }
 
-        return ImportedDefaults(
+        return ImportedReminderMetadata(
             startHour = startHour,
             endHour = endHour,
+            reminderDays = reminderDays,
         )
     }
 
-    private data class ImportedDefaults(
+    private data class ImportedReminderMetadata(
         val startHour: Int?,
         val endHour: Int?,
+        val reminderDays: Set<DayOfWeek>?,
     )
 }
