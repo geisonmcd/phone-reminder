@@ -164,6 +164,28 @@ class ReminderExchangeTest {
     }
 
     @Test
+    fun exportAndImportPreservesReminderCadence() {
+        val exported = ReminderExchange.export(
+            AppState(
+                reminders = listOf(
+                    ReminderItem(
+                        id = "spaced",
+                        text = "Spaced reminder.",
+                        schedule = ScheduleSettings(
+                            notificationsPerDay = 1,
+                            cadence = ScheduleCadence.TWICE_MONTHLY,
+                        ),
+                    ),
+                ),
+            ),
+        )
+
+        val imported = ReminderExchange.import(exported)
+
+        assertEquals(ScheduleCadence.TWICE_MONTHLY, imported.reminders.single().schedule.cadence)
+    }
+
+    @Test
     fun importSkipsObsoleteNotificationCountBeforeDailyCount() {
         val imported = ReminderExchange.import(
             """

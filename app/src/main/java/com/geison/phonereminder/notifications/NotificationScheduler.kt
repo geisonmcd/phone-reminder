@@ -9,10 +9,13 @@ import com.geison.phonereminder.data.AppState
 import com.geison.phonereminder.data.MAX_NOTIFICATIONS_PER_DAY
 import com.geison.phonereminder.data.ReminderItem
 import com.geison.phonereminder.data.ReminderStorage
+import com.geison.phonereminder.data.ScheduleCadence
 import java.time.Duration
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.LocalTime
+import java.time.YearMonth
+import java.time.temporal.TemporalAdjusters
 import java.time.ZoneId
 import kotlin.random.Random
 
@@ -145,7 +148,8 @@ object NotificationScheduler {
             .asSequence()
             .filter { it.text.isNotBlank() }
             .filter { reminder ->
-                day.dayOfWeek in (reminder.schedule.reminderDays ?: state.reminderDays)
+                val reminderDays = reminder.schedule.reminderDays ?: state.reminderDays
+                day.dayOfWeek in reminderDays && reminder.isActiveOn(day, reminderDays)
             }
             .flatMap { reminder -> buildOccurrencesForDay(reminder, state, day).asSequence() }
             .shuffled(random)
@@ -201,6 +205,74 @@ object NotificationScheduler {
                 endMinuteExclusive = endMinuteExclusive,
             )
         }
+    }
+
+    private fun ReminderItem.isActiveOn(
+        day: LocalDate,
+        reminderDays: Set<java.time.DayOfWeek>,
+    ): Boolean {
+        return when (schedule.cadence) {
+            ScheduleCadence.DAILY -> true
+            ScheduleCadence.FIVE_TIMES_PER_WEEK -> selectedWeekDates(day, reminderDays, 5).contains(day)
+            ScheduleCadence.THREE_TIMES_PER_WEEK -> selectedWeekDates(day, reminderDays, 3).contains(day)
+            ScheduleCadence.WEEKLY -> selectedWeekDates(day, reminderDays, 1).contains(day)
+            ScheduleCadence.TWICE_MONTHLY -> selectedMonthDates(day, reminderDays, 2).contains(day)
+            ScheduleCadence.MONTHLY -> selectedMonthDates(day, reminderDays, 1).contains(day)
+            ScheduleCadence.PAUSED -> false
+        }
+    }
+
+    private fun ReminderItem.selectedWeekDates(
+        day: LocalDate,
+        reminderDays: Set<java.time.DayOfWeek>,
+        targetCount: Int,
+    ): Set<LocalDate> {
+        val weekStart = day.with(TemporalAdjusters.previousOrSame(java.time.DayOfWeek.MONDAY))
+        val candidates = (0L..6L)
+            .map { offset -> weekStart.plusDays(offset) }
+            .filter { it.dayOfWeek in reminderDays }
+
+        return selectedDates(
+            candidates = candidates,
+            targetCount = targetCount,
+            seed = stableSeed("${id}:${schedule.cadence}:${weekStart.toEpochDay()}"),
+        )
+    }
+
+    private fun ReminderItem.selectedMonthDates(
+        day: LocalDate,
+        reminderDays: Set<java.time.DayOfWeek>,
+        targetCount: Int,
+    ): Set<LocalDate> {
+        val month = YearMonth.from(day)
+        val candidates = (1..month.lengthOfMonth())
+            .map { dayOfMonth -> month.atDay(dayOfMonth) }
+            .filter { it.dayOfWeek in reminderDays }
+
+        return selectedDates(
+            candidates = candidates,
+            targetCount = targetCount,
+            seed = stableSeed("${id}:${schedule.cadence}:${month.year}:${month.monthValue}"),
+        )
+    }
+
+    private fun selectedDates(
+        candidates: List<LocalDate>,
+        targetCount: Int,
+        seed: Int,
+    ): Set<LocalDate> {
+        if (candidates.isEmpty() || targetCount <= 0) {
+            return emptySet()
+        }
+
+        return candidates
+            .shuffled(Random(seed))
+            .take(targetCount.coerceAtMost(candidates.size))
+            .toSet()
+    }
+
+    private fun stableSeed(value: String): Int {
+        return value.fold(0) { hash, char -> (hash * 31) + char.code }
     }
 
     private fun LocalDateTime.toEpochMillis(): Long {

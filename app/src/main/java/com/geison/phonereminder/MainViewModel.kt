@@ -15,6 +15,7 @@ import com.geison.phonereminder.data.ReminderExchange
 import com.geison.phonereminder.data.ReminderImportMerge
 import com.geison.phonereminder.data.ReminderItem
 import com.geison.phonereminder.data.ReminderRepository
+import com.geison.phonereminder.data.ScheduleCadence
 import com.geison.phonereminder.data.ScheduleSettings
 import com.geison.phonereminder.diagnostics.Diagnostics
 import com.geison.phonereminder.notifications.NotificationScheduler
@@ -58,6 +59,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         text: String,
         notificationsPerDay: Int,
         reminderDays: Set<DayOfWeek>?,
+        cadence: ScheduleCadence,
         createdAtEpochMillis: Long,
     ): String? {
         val trimmedText = text.trim()
@@ -71,6 +73,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             schedule = ScheduleSettings(
                 notificationsPerDay = safeNotificationsPerDay,
                 reminderDays = reminderDays,
+                cadence = cadence,
             ),
             createdAtEpochMillis = createdAtEpochMillis,
         )
@@ -96,6 +99,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         text: String,
         notificationsPerDay: Int,
         reminderDays: Set<DayOfWeek>?,
+        cadence: ScheduleCadence,
     ) {
         val trimmedText = text.trim()
         if (trimmedText.isEmpty()) {
@@ -110,6 +114,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 schedule = ScheduleSettings(
                     notificationsPerDay = safeNotificationsPerDay,
                     reminderDays = reminderDays,
+                    cadence = cadence,
                 ),
             )
         }

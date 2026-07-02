@@ -1,5 +1,6 @@
 # Changelog
 
+- 2026-07-02 — Added spaced reminder cadence controls and short notification frequency actions.
 - 2026-06-07 — Added optional per-reminder day-of-week scheduling overrides.
 - 2026-06-06 — Added a manual production promotion workflow for promoting an existing internal testing version.
 - 2026-06-05 — Enabled Google Drive backup for internal and closed testing release builds while keeping production release builds disabled by default.

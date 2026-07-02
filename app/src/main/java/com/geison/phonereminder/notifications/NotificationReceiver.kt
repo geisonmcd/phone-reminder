@@ -9,7 +9,10 @@ import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
 import com.geison.phonereminder.data.MAX_NOTIFICATIONS_PER_DAY
 import com.geison.phonereminder.data.ReminderStorage
+import com.geison.phonereminder.data.ScheduleCadence
 import com.geison.phonereminder.data.ScheduleSettings
+import com.geison.phonereminder.data.lessOften
+import com.geison.phonereminder.data.moreOften
 import com.geison.phonereminder.diagnostics.Diagnostics
 
 class NotificationReceiver : BroadcastReceiver() {
@@ -94,12 +97,32 @@ internal fun adjustScheduleFrequency(
     adjustment: FrequencyAdjustment,
 ): ScheduleSettings {
     val notificationsPerDay = schedule.notificationsPerDay.coerceIn(1, MAX_NOTIFICATIONS_PER_DAY)
-    val adjustedNotificationsPerDay = when (adjustment) {
-        FrequencyAdjustment.LESS_OFTEN -> (notificationsPerDay / 2).coerceAtLeast(1)
-        FrequencyAdjustment.MORE_OFTEN -> (notificationsPerDay * 2).coerceAtMost(MAX_NOTIFICATIONS_PER_DAY)
-    }
 
-    return schedule.copy(
-        notificationsPerDay = adjustedNotificationsPerDay,
-    )
+    return when (adjustment) {
+        FrequencyAdjustment.LESS_OFTEN -> {
+            if (notificationsPerDay > 1) {
+                schedule.copy(
+                    notificationsPerDay = (notificationsPerDay / 2).coerceAtLeast(1),
+                )
+            } else {
+                schedule.copy(
+                    notificationsPerDay = 1,
+                    cadence = schedule.cadence.lessOften(),
+                )
+            }
+        }
+
+        FrequencyAdjustment.MORE_OFTEN -> {
+            if (schedule.cadence != ScheduleCadence.DAILY) {
+                schedule.copy(
+                    notificationsPerDay = notificationsPerDay,
+                    cadence = schedule.cadence.moreOften(),
+                )
+            } else {
+                schedule.copy(
+                    notificationsPerDay = (notificationsPerDay * 2).coerceAtMost(MAX_NOTIFICATIONS_PER_DAY),
+                )
+            }
+        }
+    }
 }

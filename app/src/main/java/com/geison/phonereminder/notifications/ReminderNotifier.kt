@@ -12,6 +12,8 @@ import androidx.core.content.ContextCompat
 import com.geison.phonereminder.MainActivity
 import com.geison.phonereminder.R
 import com.geison.phonereminder.data.ReminderStorage
+import com.geison.phonereminder.data.ScheduleCadence
+import com.geison.phonereminder.data.ScheduleSettings
 import com.geison.phonereminder.diagnostics.Diagnostics
 
 object ReminderNotifier {
@@ -53,7 +55,7 @@ object ReminderNotifier {
                 lessOftenSchedule?.let { adjustedSchedule ->
                     context.getString(
                         R.string.notification_action_schedule_less,
-                        adjustedSchedule.notificationsPerDay,
+                        adjustedSchedule.notificationActionLabel(context),
                     )
                 } ?: context.getString(R.string.notification_action_less_often),
                 frequencyActionIntent(
@@ -69,7 +71,7 @@ object ReminderNotifier {
                 moreOftenSchedule?.let { adjustedSchedule ->
                     context.getString(
                         R.string.notification_action_schedule_more,
-                        adjustedSchedule.notificationsPerDay,
+                        adjustedSchedule.notificationActionLabel(context),
                     )
                 } ?: context.getString(R.string.notification_action_more_often),
                 frequencyActionIntent(
@@ -128,4 +130,26 @@ object ReminderNotifier {
 
     private const val LESS_OFTEN_REQUEST_CODE_MASK = 0x4A71
     private const val MORE_OFTEN_REQUEST_CODE_MASK = 0x6B92
+}
+
+private fun ScheduleSettings.notificationActionLabel(context: Context): String {
+    if (cadence == ScheduleCadence.PAUSED) {
+        return context.getString(R.string.notification_schedule_paused)
+    }
+
+    return when (cadence) {
+        ScheduleCadence.DAILY -> {
+            if (notificationsPerDay == 1) {
+                context.getString(R.string.notification_schedule_daily)
+            } else {
+                context.getString(R.string.notification_schedule_daily_count, notificationsPerDay)
+            }
+        }
+        ScheduleCadence.FIVE_TIMES_PER_WEEK -> context.getString(R.string.notification_schedule_five_weekly)
+        ScheduleCadence.THREE_TIMES_PER_WEEK -> context.getString(R.string.notification_schedule_three_weekly)
+        ScheduleCadence.WEEKLY -> context.getString(R.string.notification_schedule_weekly)
+        ScheduleCadence.TWICE_MONTHLY -> context.getString(R.string.notification_schedule_twice_monthly)
+        ScheduleCadence.MONTHLY -> context.getString(R.string.notification_schedule_monthly)
+        ScheduleCadence.PAUSED -> context.getString(R.string.notification_schedule_paused)
+    }
 }

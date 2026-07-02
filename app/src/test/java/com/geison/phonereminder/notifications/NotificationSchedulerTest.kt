@@ -3,6 +3,7 @@ package com.geison.phonereminder.notifications
 import com.geison.phonereminder.data.AppState
 import com.geison.phonereminder.data.NotificationWindowSettings
 import com.geison.phonereminder.data.ReminderItem
+import com.geison.phonereminder.data.ScheduleCadence
 import com.geison.phonereminder.data.ScheduleSettings
 import org.junit.Assert.assertEquals
 import org.junit.Test
@@ -222,6 +223,90 @@ class NotificationSchedulerTest {
 
         assertEquals(1, plan.size)
         assertEquals(DayOfWeek.WEDNESDAY, plan.single().triggerAt.dayOfWeek)
+    }
+
+    @Test
+    fun createSchedulePlanSupportsThreeTimesPerWeekCadence() {
+        val startDay = LocalDate.of(2026, 4, 13) // Monday
+        val state = AppState(
+            notificationWindow = NotificationWindowSettings(
+                startHour = 9,
+                endHour = 21,
+            ),
+            reminders = listOf(
+                ReminderItem(
+                    id = "three-weekly",
+                    text = "Show a few times each week.",
+                    schedule = ScheduleSettings(
+                        notificationsPerDay = 1,
+                        cadence = ScheduleCadence.THREE_TIMES_PER_WEEK,
+                    ),
+                ),
+            ),
+        )
+
+        val plan = NotificationScheduler.createSchedulePlan(
+            state = state,
+            startDay = startDay,
+            totalDays = 7,
+        )
+
+        assertEquals(3, plan.size)
+        assertEquals(3, plan.map { it.triggerAt.toLocalDate() }.distinct().size)
+    }
+
+    @Test
+    fun createSchedulePlanSupportsTwiceMonthlyCadence() {
+        val startDay = LocalDate.of(2026, 4, 1)
+        val state = AppState(
+            notificationWindow = NotificationWindowSettings(
+                startHour = 9,
+                endHour = 21,
+            ),
+            reminders = listOf(
+                ReminderItem(
+                    id = "twice-monthly",
+                    text = "Show twice this month.",
+                    schedule = ScheduleSettings(
+                        notificationsPerDay = 1,
+                        cadence = ScheduleCadence.TWICE_MONTHLY,
+                    ),
+                ),
+            ),
+        )
+
+        val plan = NotificationScheduler.createSchedulePlan(
+            state = state,
+            startDay = startDay,
+            totalDays = 30,
+        )
+
+        assertEquals(2, plan.size)
+        assertEquals(setOf(4), plan.map { it.triggerAt.monthValue }.toSet())
+    }
+
+    @Test
+    fun createSchedulePlanSkipsPausedReminders() {
+        val startDay = LocalDate.of(2026, 4, 13) // Monday
+        val state = AppState(
+            reminders = listOf(
+                ReminderItem(
+                    id = "paused",
+                    text = "Do not show.",
+                    schedule = ScheduleSettings(
+                        cadence = ScheduleCadence.PAUSED,
+                    ),
+                ),
+            ),
+        )
+
+        val plan = NotificationScheduler.createSchedulePlan(
+            state = state,
+            startDay = startDay,
+            totalDays = 30,
+        )
+
+        assertEquals(0, plan.size)
     }
 
     private fun reminder(id: String): ReminderItem {

@@ -15,6 +15,7 @@ object ReminderExchange {
     private const val defaultEndHourLabel = "Default end hour: "
     private const val reminderDaysLabel = "Reminder days: "
     private const val notificationsPerDayLabel = "Notifications per day: "
+    private const val cadenceLabel = "Cadence: "
     private const val obsoleteNotificationsPrefix = "Notifications per "
     private const val legacyReminderStartHourLabel = "Start hour: "
     private const val legacyReminderEndHourLabel = "End hour: "
@@ -40,6 +41,9 @@ object ReminderExchange {
             lines += reminder.text.trimEnd()
             lines += reminderEnd
             lines += notificationsPerDayLabel + reminder.schedule.notificationsPerDay
+            if (reminder.schedule.cadence != ScheduleCadence.DAILY) {
+                lines += cadenceLabel + reminder.schedule.cadence.name
+            }
             reminder.schedule.reminderDays?.let { days ->
                 lines += reminderDaysLabel + days
                     .sortedBy { it.value }
@@ -145,6 +149,7 @@ object ReminderExchange {
                 schedule = ScheduleSettings(
                     notificationsPerDay = notificationsPerDay,
                     reminderDays = importedMetadata.reminderDays,
+                    cadence = importedMetadata.cadence,
                 ),
             )
         }
@@ -214,6 +219,7 @@ object ReminderExchange {
         var startHour = defaultStartHour
         var endHour = defaultEndHour
         var reminderDays: Set<DayOfWeek>? = null
+        var cadence = ScheduleCadence.DAILY
 
         while (true) {
             val line = cursor.peekLine()?.trimEnd() ?: break
@@ -242,6 +248,12 @@ object ReminderExchange {
                     reminderDays = parseReminderDays(cursor.readLine().removePrefix(reminderDaysLabel))
                 }
 
+                line.startsWith(cadenceLabel) -> {
+                    val rawCadence = cursor.readLine().removePrefix(cadenceLabel).trim()
+                    cadence = ScheduleCadence.entries.firstOrNull { it.name == rawCadence }
+                        ?: ScheduleCadence.DAILY
+                }
+
                 else -> cursor.readLine()
             }
         }
@@ -250,6 +262,7 @@ object ReminderExchange {
             startHour = startHour,
             endHour = endHour,
             reminderDays = reminderDays,
+            cadence = cadence,
         )
     }
 
@@ -257,5 +270,6 @@ object ReminderExchange {
         val startHour: Int?,
         val endHour: Int?,
         val reminderDays: Set<DayOfWeek>?,
+        val cadence: ScheduleCadence,
     )
 }

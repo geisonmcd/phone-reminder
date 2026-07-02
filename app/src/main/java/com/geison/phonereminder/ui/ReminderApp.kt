@@ -81,7 +81,10 @@ import com.geison.phonereminder.R
 import com.geison.phonereminder.data.MAX_NOTIFICATIONS_PER_DAY
 import com.geison.phonereminder.data.NotificationWindowSettings
 import com.geison.phonereminder.data.ReminderItem
+import com.geison.phonereminder.data.ScheduleCadence
 import com.geison.phonereminder.data.ScheduleSettings
+import com.geison.phonereminder.data.lessOften
+import com.geison.phonereminder.data.moreOften
 import java.text.DateFormat
 import java.time.DayOfWeek
 import java.util.Date
@@ -241,13 +244,14 @@ fun ReminderApp(
                         notificationWindow = state.notificationWindow,
                         reminderDays = state.reminderDays,
                         onBack = { selectedReminderId = null },
-                        onSave = { text, notificationsPerDay, reminderDaysOverride ->
+                        onSave = { text, notificationsPerDay, reminderDaysOverride, cadence ->
                             if (isCreatingNewReminder) {
                                 if (
                                     viewModel.addReminder(
                                         text = text,
                                         notificationsPerDay = notificationsPerDay,
                                         reminderDays = reminderDaysOverride,
+                                        cadence = cadence,
                                         createdAtEpochMillis = selectedReminder.createdAtEpochMillis,
                                     ) != null
                                 ) {
@@ -259,6 +263,7 @@ fun ReminderApp(
                                     text = text,
                                     notificationsPerDay = notificationsPerDay,
                                     reminderDays = reminderDaysOverride,
+                                    cadence = cadence,
                                 )
                                 selectedReminderId = null
                             }
@@ -871,13 +876,16 @@ private fun ReminderEditScreen(
     notificationWindow: NotificationWindowSettings,
     reminderDays: Set<DayOfWeek>,
     onBack: () -> Unit,
-    onSave: (String, Int, Set<DayOfWeek>?) -> Unit,
+    onSave: (String, Int, Set<DayOfWeek>?, ScheduleCadence) -> Unit,
     onDelete: () -> Unit,
     onTestNotification: (String, String) -> Unit,
 ) {
     var text by rememberSaveable(reminder.id, reminder.text) { mutableStateOf(reminder.text) }
     var notificationsPerDay by rememberSaveable(reminder.id, reminder.schedule.notificationsPerDay) {
         mutableStateOf(reminder.schedule.notificationsPerDay)
+    }
+    var cadence by rememberSaveable(reminder.id, reminder.schedule.cadence) {
+        mutableStateOf(reminder.schedule.cadence)
     }
     var reminderDaysOverrideEnabled by rememberSaveable(reminder.id) {
         mutableStateOf(reminder.schedule.reminderDays != null)
@@ -943,6 +951,7 @@ private fun ReminderEditScreen(
                             text,
                             notificationsPerDay,
                             if (reminderDaysOverrideEnabled) customReminderDays else null,
+                            cadence,
                         )
                     }
                 },
@@ -1000,8 +1009,28 @@ private fun ReminderEditScreen(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 Spacer(modifier = Modifier.height(12.dp))
+                StepperRow(
+                    label = stringResource(R.string.label_schedule_cadence),
+                    value = scheduleCadenceLabel(cadence),
+                    onDecrease = {
+                        cadence = cadence.lessOften()
+                    },
+                    onIncrease = {
+                        cadence = cadence.moreOften()
+                    },
+                )
+                HorizontalDivider(
+                    modifier = Modifier.padding(vertical = 8.dp),
+                    color = MaterialTheme.colorScheme.outline.copy(alpha = 0.35f),
+                )
                 val lowerNotificationsPerDay = (notificationsPerDay - 1).coerceAtLeast(1)
                 val higherNotificationsPerDay = (notificationsPerDay + 1).coerceAtMost(MAX_NOTIFICATIONS_PER_DAY)
+                Text(
+                    text = stringResource(R.string.label_notifications_per_active_day),
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Medium,
+                )
+                Spacer(modifier = Modifier.height(8.dp))
                 DailyScheduleStepper(
                     value = notificationsPerDay.toString(),
                     onDecrease = {
@@ -1039,6 +1068,7 @@ private fun ReminderEditScreen(
                 Text(
                     text = schedulePreview(
                         notificationsPerDay = notificationsPerDay,
+                        cadence = cadence,
                         startHour = notificationWindow.startHour,
                         endHour = notificationWindow.endHour,
                         reminderDays = if (reminderDaysOverrideEnabled) customReminderDays else reminderDays,
@@ -1713,19 +1743,34 @@ private fun reminderDayOptions(): List<ReminderDayOption> {
 
 @Composable
 private fun scheduleSummary(reminder: ReminderItem): String {
-    return stringResource(
-        R.string.schedule_summary,
-        reminder.schedule.notificationsPerDay,
-    )
+    val schedule = reminder.schedule
+    if (schedule.cadence == ScheduleCadence.PAUSED) {
+        return scheduleCadenceLabel(schedule.cadence)
+    }
+
+    return if (schedule.notificationsPerDay == 1) {
+        scheduleCadenceLabel(schedule.cadence)
+    } else {
+        stringResource(
+            R.string.schedule_summary_with_daily_count,
+            schedule.notificationsPerDay,
+            scheduleCadenceLabel(schedule.cadence),
+        )
+    }
 }
 
 @Composable
 private fun schedulePreview(
     notificationsPerDay: Int,
+    cadence: ScheduleCadence,
     startHour: Int,
     endHour: Int,
     reminderDays: Set<DayOfWeek>,
 ): String {
+    if (cadence == ScheduleCadence.PAUSED) {
+        return stringResource(R.string.schedule_preview_paused)
+    }
+
     val daysText = if (reminderDays.size == 7) {
         stringResource(R.string.schedule_summary_all_days)
     } else {
@@ -1733,11 +1778,25 @@ private fun schedulePreview(
     }
     return stringResource(
         R.string.schedule_summary_full,
+        scheduleCadenceLabel(cadence),
         notificationsPerDay,
         hourLabel(startHour),
         hourLabel(endHour),
         daysText,
     )
+}
+
+@Composable
+private fun scheduleCadenceLabel(cadence: ScheduleCadence): String {
+    return when (cadence) {
+        ScheduleCadence.DAILY -> stringResource(R.string.schedule_cadence_daily)
+        ScheduleCadence.FIVE_TIMES_PER_WEEK -> stringResource(R.string.schedule_cadence_five_weekly)
+        ScheduleCadence.THREE_TIMES_PER_WEEK -> stringResource(R.string.schedule_cadence_three_weekly)
+        ScheduleCadence.WEEKLY -> stringResource(R.string.schedule_cadence_weekly)
+        ScheduleCadence.TWICE_MONTHLY -> stringResource(R.string.schedule_cadence_twice_monthly)
+        ScheduleCadence.MONTHLY -> stringResource(R.string.schedule_cadence_monthly)
+        ScheduleCadence.PAUSED -> stringResource(R.string.schedule_cadence_paused)
+    }
 }
 
 @Composable
