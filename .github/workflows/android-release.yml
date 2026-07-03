@@ -91,3 +91,4 @@ jobs:
           status: completed
           releaseName: ${{ inputs.versionName }} (${{ inputs.versionCode }})
           whatsNewDirectory: play-store/whatsnew
+          mappingFile: app/build/outputs/mapping/release/mapping.txt

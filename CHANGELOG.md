@@ -1,5 +1,6 @@
 # Changelog
 
+- 2026-07-03 — Enabled release minification, mapping upload, and native symbol metadata in release bundles.
 - 2026-07-02 — Added spaced reminder cadence controls and short notification frequency actions.
 - 2026-06-07 — Added optional per-reminder day-of-week scheduling overrides.
 - 2026-06-06 — Added a manual production promotion workflow for promoting an existing internal testing version.
