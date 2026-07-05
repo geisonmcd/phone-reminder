@@ -1,0 +1,200 @@
+name: Android Testing Tracks Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      versionCode:
+        description: Play Store versionCode. Must be higher than every previous upload.
+        required: true
+        type: string
+      versionName:
+        description: User-visible version name.
+        required: true
+        default: "1.0.0"
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: android-testing-tracks-release
+  cancel-in-progress: false
+
+jobs:
+  bundle:
+    name: Build, upload to internal, and promote to testing tracks
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Set up JDK
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "17"
+          cache: gradle
+
+      - name: Check Play service account secret
+        run: test -n "$PLAY_SERVICE_ACCOUNT_JSON"
+        env:
+          PLAY_SERVICE_ACCOUNT_JSON: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
+
+      - name: Write Firebase Crashlytics config
+        run: |
+          if [ -f app/google-services.json ]; then
+            exit 0
+          fi
+          if [ -z "$FIREBASE_GOOGLE_SERVICES_JSON" ]; then
+            echo "FIREBASE_GOOGLE_SERVICES_JSON is not set; building without Firebase Crashlytics config."
+            exit 0
+          fi
+          test -n "$FIREBASE_GOOGLE_SERVICES_JSON"
+          printf '%s' "$FIREBASE_GOOGLE_SERVICES_JSON" > app/google-services.json
+        env:
+          FIREBASE_GOOGLE_SERVICES_JSON: ${{ secrets.FIREBASE_GOOGLE_SERVICES_JSON }}
+
+      - name: Decode upload keystore
+        run: |
+          test -n "$RELEASE_KEYSTORE_BASE64"
+          printf '%s' "$RELEASE_KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/release.keystore"
+        env:
+          RELEASE_KEYSTORE_BASE64: ${{ secrets.RELEASE_KEYSTORE_BASE64 }}
+
+      - name: Test and build signed bundle
+        run: ./gradlew test bundleRelease --no-daemon
+        env:
+          VERSION_CODE: ${{ inputs.versionCode }}
+          VERSION_NAME: ${{ inputs.versionName }}
+          GOOGLE_DRIVE_BACKUP_ENABLED: "true"
+          RELEASE_STORE_FILE: ${{ runner.temp }}/release.keystore
+          RELEASE_STORE_PASSWORD: ${{ secrets.RELEASE_STORE_PASSWORD }}
+          RELEASE_KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
+          RELEASE_KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
+
+      - name: Upload AAB artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: smart-random-reminder-testing-tracks-aab
+          path: app/build/outputs/bundle/release/app-release.aab
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload to Play internal testing
+        uses: r0adkll/upload-google-play@v1
+        with:
+          serviceAccountJsonPlainText: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
+          packageName: com.geison.smartrandomreminder
+          releaseFiles: app/build/outputs/bundle/release/app-release.aab
+          track: internal
+          status: completed
+          releaseName: ${{ inputs.versionName }} (${{ inputs.versionCode }})
+          whatsNewDirectory: play-store/whatsnew
+          mappingFile: app/build/outputs/mapping/release/mapping.txt
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install Google API client
+        run: npm install googleapis@144
+
+      - name: Promote internal version to closed and open testing
+        env:
+          PLAY_SERVICE_ACCOUNT_JSON: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
+          VERSION_CODE: ${{ inputs.versionCode }}
+          VERSION_NAME: ${{ inputs.versionName }}
+          PACKAGE_NAME: com.geison.smartrandomreminder
+        run: |
+          node <<'NODE'
+          const { google } = require("googleapis");
+
+          async function getTrack(androidpublisher, packageName, editId, track) {
+            return androidpublisher.edits.tracks.get({
+              packageName,
+              editId,
+              track,
+            }).catch((error) => {
+              if (error.code === 404) {
+                return { data: { releases: [] } };
+              }
+              throw error;
+            });
+          }
+
+          async function main() {
+            const packageName = process.env.PACKAGE_NAME;
+            const versionCode = process.env.VERSION_CODE;
+            const versionName = process.env.VERSION_NAME;
+            const serviceAccountJson = process.env.PLAY_SERVICE_ACCOUNT_JSON;
+
+            if (!serviceAccountJson) {
+              throw new Error("PLAY_SERVICE_ACCOUNT_JSON is not set.");
+            }
+
+            const serviceAccount = JSON.parse(serviceAccountJson);
+            const auth = new google.auth.JWT({
+              email: serviceAccount.client_email,
+              key: serviceAccount.private_key,
+              scopes: ["https://www.googleapis.com/auth/androidpublisher"],
+            });
+            const androidpublisher = google.androidpublisher({
+              version: "v3",
+              auth,
+            });
+
+            const edit = await androidpublisher.edits.insert({ packageName });
+            const editId = edit.data.id;
+            console.log(`Created edit ${editId}`);
+
+            const internalTrack = await getTrack(androidpublisher, packageName, editId, "internal");
+            const internalReleases = internalTrack.data.releases || [];
+            const internalHasVersion = internalReleases.some((release) =>
+              (release.versionCodes || []).map(String).includes(String(versionCode)),
+            );
+            if (!internalHasVersion) {
+              throw new Error(`Version code ${versionCode} was not found on the internal track.`);
+            }
+
+            const releaseName = `${versionName} (${versionCode})`;
+            const targetTracks = [
+              { track: "alpha", label: "closed testing" },
+              { track: "beta", label: "open testing" },
+            ];
+
+            for (const target of targetTracks) {
+              const currentTrack = await getTrack(androidpublisher, packageName, editId, target.track);
+              console.log(`Current ${target.label} releases: ${JSON.stringify(currentTrack.data.releases || [])}`);
+
+              await androidpublisher.edits.tracks.update({
+                packageName,
+                editId,
+                track: target.track,
+                requestBody: {
+                  track: target.track,
+                  releases: [
+                    {
+                      name: releaseName,
+                      versionCodes: [String(versionCode)],
+                      status: "completed",
+                    },
+                  ],
+                },
+              });
+              console.log(`Promoted ${releaseName} to ${target.label} (${target.track})`);
+            }
+
+            const committed = await androidpublisher.edits.commit({
+              packageName,
+              editId,
+            });
+            console.log(`Finished promoting to testing tracks: ${committed.data.id}`);
+          }
+
+          main().catch((error) => {
+            console.error(error);
+            process.exit(1);
+          });
+          NODE
