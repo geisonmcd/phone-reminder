@@ -1,5 +1,6 @@
 # Changelog
 
+- 2026-07-21 — Targeted Android 16 (API 36) so Play keeps the app available on the latest Android versions.
 - 2026-07-05 — Replaced the launcher and Play metadata icon and added a testing-tracks workflow for internal, closed, and open testing.
 - 2026-07-03 — Enabled release minification, mapping upload, and native symbol metadata in release bundles.
 - 2026-07-02 — Added spaced reminder cadence controls and short notification frequency actions.

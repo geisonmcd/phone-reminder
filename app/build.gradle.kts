@@ -45,12 +45,12 @@ fun googleDriveBackupEnabled(defaultValue: Boolean): Boolean {
 
 android {
     namespace = "com.geison.phonereminder"
-    compileSdk = 35
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "com.geison.smartrandomreminder"
         minSdk = 26
-        targetSdk = 35
+        targetSdk = 36
         versionCode = releaseVersionCode()
         versionName = releaseVersionName()
 

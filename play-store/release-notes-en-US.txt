@@ -1,6 +1,4 @@
-Smart Random Reminder now includes crash diagnostics to help find and fix production crashes.
+Targets Android 16 so the app stays available to everyone on the latest Android versions.
 
-- Collect privacy-safe crash reports through Firebase Crashlytics
-- Remove notification frequency buttons while that flow is being fixed
-- Keep reminder text out of crash diagnostics
-- Keep reminder data stored locally on device
+- Updated target and compile SDK to Android 16 (API 36)
+- Keeps reminders, notifications, and backup behavior the same

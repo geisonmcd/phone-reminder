@@ -1,5 +1,4 @@
-Importing backups is safer and notification posting is more reliable.
+Targets Android 16 so the app stays available to everyone on the latest Android versions.
 
-- Choose whether to merge or replace reminders when importing a backup
-- Keep current schedule settings when merging imported reminders
-- Skip notification posting cleanly when Android notification permission is denied
+- Updated target and compile SDK to Android 16 (API 36)
+- Keeps reminders, notifications, and backup behavior the same
