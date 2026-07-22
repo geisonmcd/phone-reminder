@@ -24,6 +24,9 @@ Phone Reminder - an Android app for scheduling and managing reminders.
 ## After every commit
 - Update `CHANGELOG.md` with a dated one-liner (e.g. `- 2025-05-29 — Fixed X by doing Y.`).
 
+## Tooling Preferences
+- Always prefer the [Android CLI](https://developer.android.com/tools/agents/android-cli) when relevant instead of Android Studio GUI flows, especially for automation, CI/CD, and repetitive tasks. See `docs/android-cli.md` for a quick overview.
+
 ## Code Conventions
 - Kotlin for Android development
 - Jetpack Compose for UI
