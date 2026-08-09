@@ -147,6 +147,7 @@ fun ReminderApp(
     var pendingGoogleDriveAction by remember { mutableStateOf<MainViewModel.GoogleDriveAction?>(null) }
     val googleDriveMessage by viewModel.googleDriveMessage.collectAsStateWithLifecycle()
     val googleDriveRestorePreview by viewModel.googleDriveRestorePreview.collectAsStateWithLifecycle()
+    val googleDriveAuthIntent by viewModel.googleDriveAuthIntent.collectAsStateWithLifecycle()
     val context = LocalContext.current
 
     val exportLauncher = rememberLauncherForActivityResult(
@@ -187,6 +188,18 @@ fun ReminderApp(
         if (action != null) {
             viewModel.onGoogleDriveSignInResult(result, action)
         }
+    }
+
+    val googleDriveAuthRecoveryLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartActivityForResult(),
+    ) { result ->
+        viewModel.onGoogleDriveAuthRecoveryResult(result)
+    }
+
+    LaunchedEffect(googleDriveAuthIntent) {
+        val intent = googleDriveAuthIntent ?: return@LaunchedEffect
+        googleDriveAuthRecoveryLauncher.launch(intent)
+        viewModel.clearGoogleDriveAuthIntent()
     }
 
     val isCreatingNewReminder = selectedReminderId == NEW_REMINDER_ID
@@ -310,7 +323,7 @@ fun ReminderApp(
                             importLauncher.launch(arrayOf("text/plain"))
                         },
                         onGoogleDriveBackup = {
-                            val account = viewModel.getLastSignedInAccount()
+                            val account = viewModel.getAuthorizedGoogleDriveAccount()
                             if (account != null) {
                                 viewModel.performGoogleDriveAction(account, MainViewModel.GoogleDriveAction.BACKUP)
                             } else {
@@ -319,7 +332,7 @@ fun ReminderApp(
                             }
                         },
                         onGoogleDriveRestore = {
-                            val account = viewModel.getLastSignedInAccount()
+                            val account = viewModel.getAuthorizedGoogleDriveAccount()
                             if (account != null) {
                                 viewModel.performGoogleDriveAction(account, MainViewModel.GoogleDriveAction.RESTORE)
                             } else {

@@ -13,6 +13,7 @@
     <string name="message_google_drive_sign_in_cancelled">Login do Google cancelado.</string>
     <string name="message_google_drive_sign_in_failed">Falha no login do Google.</string>
     <string name="message_google_drive_sign_in_failed_with_code">Falha no login do Google. Código de status: %1$d.</string>
+    <string name="message_google_drive_auth_required">É necessária permissão do Google Drive. Conclua o aviso e tente novamente.</string>
     <string name="message_google_drive_no_backup_found">Nenhum backup encontrado no Google Drive.</string>
     <string name="message_google_drive_backup_failed">Falha no backup do Google Drive: %1$s</string>
     <string name="message_google_drive_restore_failed">Falha na restauração do Google Drive: %1$s</string>

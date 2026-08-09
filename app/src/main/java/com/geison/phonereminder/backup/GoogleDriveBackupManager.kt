@@ -2,11 +2,14 @@ package com.geison.phonereminder.backup
 
 import android.content.Context
 import com.geison.phonereminder.R
+import com.google.android.gms.auth.UserRecoverableAuthException
 import com.google.android.gms.auth.api.signin.GoogleSignIn
 import com.google.android.gms.auth.api.signin.GoogleSignInAccount
 import com.google.android.gms.auth.api.signin.GoogleSignInClient
 import com.google.android.gms.auth.api.signin.GoogleSignInOptions
+import com.google.android.gms.common.api.Scope
 import com.google.api.client.googleapis.extensions.android.gms.auth.GoogleAccountCredential
+import com.google.api.client.googleapis.extensions.android.gms.auth.UserRecoverableAuthIOException
 import com.google.api.client.http.ByteArrayContent
 import com.google.api.client.http.javanet.NetHttpTransport
 import com.google.api.client.json.gson.GsonFactory
@@ -17,18 +20,26 @@ import kotlinx.coroutines.withContext
 
 class GoogleDriveBackupManager(private val context: Context) {
 
+    private val driveScope = Scope(DriveScopes.DRIVE_FILE)
+
     private val signInClient: GoogleSignInClient by lazy {
         val gso = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
             .requestEmail()
-            .requestScopes(com.google.android.gms.common.api.Scope(DriveScopes.DRIVE_FILE))
+            .requestScopes(driveScope)
             .build()
         GoogleSignIn.getClient(context, gso)
     }
 
     fun getSignInIntent() = signInClient.signInIntent
 
-    fun getLastSignedInAccount(): GoogleSignInAccount? =
-        GoogleSignIn.getLastSignedInAccount(context)
+    fun getAuthorizedAccount(): GoogleSignInAccount? {
+        val account = GoogleSignIn.getLastSignedInAccount(context) ?: return null
+        return account.takeIf { GoogleSignIn.hasPermissions(it, driveScope) }
+    }
+
+    fun signOut() {
+        signInClient.signOut()
+    }
 
     suspend fun backup(account: GoogleSignInAccount, content: String): Result<Unit> =
         withContext(Dispatchers.IO) {
@@ -46,6 +57,8 @@ class GoogleDriveBackupManager(private val context: Context) {
                     drive.files().create(metadata, media).setFields("id").execute()
                 }
                 Unit
+            }.recoverCatching { error ->
+                throw mapAuthFailure(error)
             }
         }
 
@@ -60,6 +73,8 @@ class GoogleDriveBackupManager(private val context: Context) {
                 val outputStream = java.io.ByteArrayOutputStream()
                 drive.files().get(existing.id).executeMediaAndDownloadTo(outputStream)
                 outputStream.toString(Charsets.UTF_8.name())
+            }.recoverCatching { error ->
+                throw mapAuthFailure(error)
             }
         }
 
@@ -69,7 +84,7 @@ class GoogleDriveBackupManager(private val context: Context) {
             .setQ(query)
             .setSpaces("drive")
             .setFields("files(id, name)")
-            .setPageSize(1)
+            .setPageSize(10)
             .execute()
         return result.files.firstOrNull()
     }
@@ -79,9 +94,10 @@ class GoogleDriveBackupManager(private val context: Context) {
             context,
             listOf(DriveScopes.DRIVE_FILE),
         )
-        val accountName = account.account
-            ?: throw IllegalStateException("Signed-in account has no Android account.")
-        credential.selectedAccount = accountName
+        val accountName = account.email
+            ?: account.account?.name
+            ?: throw IllegalStateException("Signed-in account has no email.")
+        credential.selectedAccountName = accountName
         return Drive.Builder(
             NetHttpTransport(),
             GsonFactory(),
@@ -89,8 +105,27 @@ class GoogleDriveBackupManager(private val context: Context) {
         ).setApplicationName(context.getString(R.string.app_name)).build()
     }
 
+    private fun mapAuthFailure(error: Throwable): Throwable {
+        val recoverable = generateSequence(error) { it.cause }
+            .firstOrNull {
+                it is UserRecoverableAuthIOException || it is UserRecoverableAuthException
+            }
+        return when (recoverable) {
+            is UserRecoverableAuthIOException ->
+                GoogleDriveAuthRequiredException(recoverable.intent, recoverable)
+            is UserRecoverableAuthException ->
+                GoogleDriveAuthRequiredException(recoverable.intent, recoverable)
+            else -> error
+        }
+    }
+
     companion object {
         const val BACKUP_FILE_NAME = "Smart Random Reminder Backup.txt"
         const val MIME_TYPE = "text/plain"
     }
 }
+
+class GoogleDriveAuthRequiredException(
+    val recoveryIntent: android.content.Intent?,
+    cause: Throwable,
+) : Exception(cause.message ?: "Google Drive authorization required.", cause)

@@ -1,5 +1,6 @@
 # Changelog
 
+- 2026-08-09 — Fixed Google Drive backup auth/scope reuse and R8 keep rules so release backups work reliably.
 - 2026-07-22 — Replaced the launcher and Play Store icon with a phone-and-bell design on a navy background.
 - 2026-07-22 — Documented Android CLI preference for agents in AGENTS.md and docs/android-cli.md.
 - 2026-07-21 — Targeted Android 16 (API 36) so Play keeps the app available on the latest Android versions.

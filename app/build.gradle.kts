@@ -96,7 +96,7 @@ android {
             buildConfigField(
                 "boolean",
                 "GOOGLE_DRIVE_BACKUP_ENABLED",
-                googleDriveBackupEnabled(defaultValue = false).toString(),
+                googleDriveBackupEnabled(defaultValue = true).toString(),
             )
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
