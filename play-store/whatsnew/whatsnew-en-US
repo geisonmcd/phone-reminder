@@ -1,4 +1,5 @@
-Targets Android 16 so the app stays available to everyone on the latest Android versions.
+Fixes Google Drive backup so sign-in and release builds sync reminders reliably.
 
-- Updated target and compile SDK to Android 16 (API 36)
-- Keeps reminders, notifications, and backup behavior the same
+- Requires Drive permission before reusing a Google account
+- Recovers expired Drive authorization
+- Keeps Drive API classes intact in release builds
