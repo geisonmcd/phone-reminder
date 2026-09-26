@@ -7,7 +7,17 @@ import com.geison.phonereminder.diagnostics.Diagnostics
 
 class BootReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
-        Diagnostics.log("boot_receiver_on_receive")
-        NotificationScheduler.scheduleToday(context)
+        Diagnostics.event(
+            "boot_receiver",
+            mapOf("action" to (intent.action ?: "unknown").substringAfterLast('.')),
+        )
+        runCatching {
+            NotificationScheduler.scheduleToday(context)
+        }.onFailure { error ->
+            Diagnostics.recordNonFatal(
+                area = "boot_reschedule_failed",
+                throwable = error,
+            )
+        }
     }
 }

@@ -215,11 +215,13 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 mutableGoogleDriveMessage.value = getApplication<Application>().getString(
                     R.string.message_google_drive_sign_in_failed,
                 )
+                Diagnostics.event("google_drive_sign_in", mapOf("result" to "missing_account"))
                 return
             }
             performGoogleDriveAction(account, action)
         } catch (e: ApiException) {
-            val message = if (e.statusCode == com.google.android.gms.auth.api.signin.GoogleSignInStatusCodes.SIGN_IN_CANCELLED) {
+            val cancelled = e.statusCode == com.google.android.gms.auth.api.signin.GoogleSignInStatusCodes.SIGN_IN_CANCELLED
+            val message = if (cancelled) {
                 getApplication<Application>().getString(R.string.message_google_drive_sign_in_cancelled)
             } else {
                 getApplication<Application>().getString(
@@ -228,11 +230,19 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 )
             }
             mutableGoogleDriveMessage.value = message
-            Diagnostics.setKey("google_drive_sign_in_status_code", e.statusCode)
-            Diagnostics.recordNonFatal(
-                area = "google_drive_sign_in_failed",
-                throwable = e,
-            )
+            if (cancelled) {
+                Diagnostics.event(
+                    "google_drive_sign_in",
+                    mapOf("result" to "cancelled", "status_code" to e.statusCode.toString()),
+                )
+            } else {
+                Diagnostics.setKey("google_drive_sign_in_status_code", e.statusCode)
+                Diagnostics.recordNonFatal(
+                    area = "google_drive_sign_in_failed",
+                    throwable = e,
+                    keys = mapOf("status_code" to e.statusCode.toString()),
+                )
+            }
         }
     }
 
@@ -247,6 +257,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             mutableGoogleDriveMessage.value = getApplication<Application>().getString(
                 R.string.message_google_drive_sign_in_cancelled,
             )
+            Diagnostics.event("google_drive_auth_recovery", mapOf("result" to "cancelled"))
             return
         }
         val account = googleDriveManager.getAuthorizedAccount()
@@ -345,6 +356,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                             currentReminderCount = state.value.reminders.size,
                         )
                     } catch (error: Exception) {
+                        Diagnostics.recordNonFatal(
+                            area = "google_drive_restore_parse_failed",
+                            throwable = error,
+                        )
                         mutableGoogleDriveMessage.value = getApplication<Application>().getString(
                             R.string.message_google_drive_restore_failed,
                             error.message ?: getApplication<Application>().getString(R.string.message_unknown_error),
@@ -391,7 +406,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun exportReminders(uri: Uri): String {
         val content = ReminderExchange.export(state.value)
         return runCatching {
-            Diagnostics.log("export_reminders")
+            Diagnostics.event("export_reminders", mapOf("result" to "started"))
             getApplication<Application>().contentResolver.openOutputStream(uri)?.bufferedWriter()?.use { writer ->
                 writer.write(content)
             } ?: error(getApplication<Application>().getString(R.string.message_file_open_failed))
@@ -399,6 +414,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             onSuccess = {
                 val count = state.value.reminders.size
                 Diagnostics.setKey("last_export_reminder_count", count)
+                Diagnostics.event(
+                    "export_reminders",
+                    mapOf("result" to "success", "count" to count.toString()),
+                )
                 getApplication<Application>().resources.getQuantityString(
                     R.plurals.message_exported_reminders,
                     count,
@@ -423,7 +442,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun previewImport(uri: Uri): ImportPreviewResult {
         return runCatching {
-            Diagnostics.log("import_reminders")
+            Diagnostics.event("import_reminders", mapOf("result" to "started"))
             val content = getApplication<Application>().contentResolver.openInputStream(uri)?.bufferedReader()?.use { reader ->
                 reader.readText()
             } ?: error(getApplication<Application>().getString(R.string.message_file_open_failed))
@@ -490,6 +509,15 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         Diagnostics.setKey("reminder_count", totalReminderCount)
         Diagnostics.setKey("last_import_reminder_count", importedReminderCount)
         Diagnostics.setKey("last_import_mode", mode)
+        Diagnostics.event(
+            "import_reminders",
+            mapOf(
+                "result" to "success",
+                "mode" to mode,
+                "imported" to importedReminderCount.toString(),
+                "total" to totalReminderCount.toString(),
+            ),
+        )
         scheduleNotifications()
     }
 

@@ -31,13 +31,13 @@ object NotificationScheduler {
         NotificationChannels.ensureCreated(context)
 
         val appState = ReminderStorage.load(context)
-        Diagnostics.log("schedule_today")
+        val readiness = Diagnostics.refreshDelivery(context)
         Diagnostics.setKey("reminder_count", appState.reminders.size)
         Diagnostics.setKey("reminder_days_count", appState.reminderDays.size)
         val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
 
         cancelReminderAlarms(context, alarmManager)
-        scheduleTomorrowRefresh(context, alarmManager)
+        val refreshScheduled = scheduleTomorrowRefresh(context, alarmManager)
 
         val dayPlan = createSchedulePlan(
             state = appState,
@@ -47,7 +47,9 @@ object NotificationScheduler {
 
         val now = LocalDateTime.now()
         val upcomingPlans = dayPlan.filter { it.triggerAt.isAfter(now.plusMinutes(1)) }
-        Diagnostics.setKey("scheduled_alarm_count", upcomingPlans.size)
+        var scheduledCount = 0
+        var failedCount = 0
+        var firstFailure: Throwable? = null
         upcomingPlans.forEachIndexed { index, plan ->
             val intent = Intent(context, NotificationReceiver::class.java)
                 .setAction(NotificationReceiver.ACTION_SHOW_REMINDER)
@@ -69,17 +71,39 @@ object NotificationScheduler {
                     notificationWindowMillis,
                     pendingIntent,
                 )
+            }.onSuccess {
+                scheduledCount += 1
             }.onFailure { error ->
-                Diagnostics.recordNonFatal(
-                    area = "schedule_alarm_failed",
-                    throwable = error,
-                    keys = mapOf(
-                        "scheduled_alarm_index" to index.toString(),
-                        "planned_alarm_count" to upcomingPlans.size.toString(),
-                    ),
-                )
-                return@forEachIndexed
+                failedCount += 1
+                if (firstFailure == null) {
+                    firstFailure = error
+                }
             }
+        }
+
+        Diagnostics.setKey("scheduled_alarm_count", scheduledCount)
+        Diagnostics.setKey("schedule_alarm_failures", failedCount)
+        Diagnostics.setKey("schedule_at_alarm_cap", dayPlan.size >= MAX_SCHEDULED_ALARMS)
+        Diagnostics.event(
+            "schedule_today",
+            linkedMapOf(
+                "planned" to upcomingPlans.size.toString(),
+                "scheduled" to scheduledCount.toString(),
+                "failed" to failedCount.toString(),
+                "refresh_scheduled" to refreshScheduled.toString(),
+                "at_alarm_cap" to (dayPlan.size >= MAX_SCHEDULED_ALARMS).toString(),
+            ) + readiness.attributes(),
+        )
+        firstFailure?.let { error ->
+            Diagnostics.recordNonFatal(
+                area = "schedule_alarm_failed",
+                throwable = error,
+                keys = mapOf(
+                    "planned_alarm_count" to upcomingPlans.size.toString(),
+                    "scheduled_alarm_count" to scheduledCount.toString(),
+                    "failed_alarm_count" to failedCount.toString(),
+                ),
+            )
         }
     }
 
@@ -97,7 +121,7 @@ object NotificationScheduler {
         }
     }
 
-    private fun scheduleTomorrowRefresh(context: Context, alarmManager: AlarmManager) {
+    private fun scheduleTomorrowRefresh(context: Context, alarmManager: AlarmManager): Boolean {
         val nextRefresh = LocalDate.now()
             .plusDays(1)
             .atStartOfDay()
@@ -111,13 +135,20 @@ object NotificationScheduler {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
         )
 
-        alarmManager.cancel(pendingIntent)
-        alarmManager.setWindow(
-            AlarmManager.RTC_WAKEUP,
-            nextRefresh.toEpochMillis(),
-            notificationWindowMillis,
-            pendingIntent,
-        )
+        return runCatching {
+            alarmManager.cancel(pendingIntent)
+            alarmManager.setWindow(
+                AlarmManager.RTC_WAKEUP,
+                nextRefresh.toEpochMillis(),
+                notificationWindowMillis,
+                pendingIntent,
+            )
+        }.onFailure { error ->
+            Diagnostics.recordNonFatal(
+                area = "schedule_refresh_failed",
+                throwable = error,
+            )
+        }.isSuccess
     }
 
     internal fun createSchedulePlan(
