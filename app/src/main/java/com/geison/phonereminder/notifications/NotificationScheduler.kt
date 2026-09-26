@@ -39,11 +39,12 @@ object NotificationScheduler {
         cancelReminderAlarms(context, alarmManager)
         val refreshScheduled = scheduleTomorrowRefresh(context, alarmManager)
 
-        val dayPlan = createSchedulePlan(
+        val schedulePlan = createSchedulePlanResult(
             state = appState,
             startDay = LocalDate.now(),
             totalDays = SCHEDULE_HORIZON_DAYS,
         )
+        val dayPlan = schedulePlan.scheduled
 
         val now = LocalDateTime.now()
         val upcomingPlans = dayPlan.filter { it.triggerAt.isAfter(now.plusMinutes(1)) }
@@ -84,6 +85,7 @@ object NotificationScheduler {
         Diagnostics.setKey("scheduled_alarm_count", scheduledCount)
         Diagnostics.setKey("schedule_alarm_failures", failedCount)
         Diagnostics.setKey("schedule_at_alarm_cap", dayPlan.size >= MAX_SCHEDULED_ALARMS)
+        Diagnostics.setKey("schedule_dropped_by_cap", schedulePlan.droppedByCap)
         Diagnostics.event(
             "schedule_today",
             linkedMapOf(
@@ -92,6 +94,7 @@ object NotificationScheduler {
                 "failed" to failedCount.toString(),
                 "refresh_scheduled" to refreshScheduled.toString(),
                 "at_alarm_cap" to (dayPlan.size >= MAX_SCHEDULED_ALARMS).toString(),
+                "dropped_by_cap" to schedulePlan.droppedByCap.toString(),
             ) + readiness.attributes(),
         )
         firstFailure?.let { error ->
@@ -157,6 +160,20 @@ object NotificationScheduler {
         totalDays: Int = SCHEDULE_HORIZON_DAYS,
         random: Random = Random.Default,
     ): List<ScheduledReminder> {
+        return createSchedulePlanResult(
+            state = state,
+            startDay = startDay,
+            totalDays = totalDays,
+            random = random,
+        ).scheduled
+    }
+
+    internal fun createSchedulePlanResult(
+        state: AppState,
+        startDay: LocalDate,
+        totalDays: Int = SCHEDULE_HORIZON_DAYS,
+        random: Random = Random.Default,
+    ): SchedulePlanResult {
         val plans = (0 until totalDays.coerceAtLeast(0))
             .asSequence()
             .map { offset -> startDay.plusDays(offset.toLong()) }
@@ -164,10 +181,13 @@ object NotificationScheduler {
             .sortedBy { it.triggerAt }
             .toList()
 
-        return plans.take(MAX_SCHEDULED_ALARMS)
-            .mapIndexed { index, scheduledReminder ->
-                scheduledReminder.copy(notificationId = 5_000 + index)
-            }
+        return SchedulePlanResult(
+            scheduled = plans.take(MAX_SCHEDULED_ALARMS)
+                .mapIndexed { index, scheduledReminder ->
+                    scheduledReminder.copy(notificationId = 5_000 + index)
+                },
+            droppedByCap = (plans.size - MAX_SCHEDULED_ALARMS).coerceAtLeast(0),
+        )
     }
 
     private fun createDayPlan(
@@ -315,6 +335,11 @@ data class ScheduledReminder(
     val notificationId: Int,
     val reminder: ReminderItem,
     val triggerAt: LocalDateTime,
+)
+
+internal data class SchedulePlanResult(
+    val scheduled: List<ScheduledReminder>,
+    val droppedByCap: Int,
 )
 
 private data class ReminderOccurrence(

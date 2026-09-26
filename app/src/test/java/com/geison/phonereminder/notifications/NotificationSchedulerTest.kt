@@ -6,6 +6,7 @@ import com.geison.phonereminder.data.ReminderItem
 import com.geison.phonereminder.data.ScheduleCadence
 import com.geison.phonereminder.data.ScheduleSettings
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.time.DayOfWeek
 import java.time.LocalDate
@@ -286,6 +287,32 @@ class NotificationSchedulerTest {
     }
 
     @Test
+    fun createSchedulePlanResultCountsOccurrencesDroppedByTheAlarmCap() {
+        val startDay = LocalDate.of(2026, 4, 13)
+        val state = AppState(
+            notificationWindow = NotificationWindowSettings(
+                startHour = 0,
+                endHour = 23,
+            ),
+            reminders = listOf(
+                reminder("first", notificationsPerDay = 50),
+                reminder("second", notificationsPerDay = 50),
+            ),
+        )
+
+        val plan = NotificationScheduler.createSchedulePlanResult(
+            state = state,
+            startDay = startDay,
+            totalDays = 7,
+            random = Random(1),
+        )
+
+        assertEquals(450, plan.scheduled.size)
+        assertTrue(plan.droppedByCap > 0)
+        assertEquals(5_000, plan.scheduled.first().notificationId)
+    }
+
+    @Test
     fun createSchedulePlanSkipsPausedReminders() {
         val startDay = LocalDate.of(2026, 4, 13) // Monday
         val state = AppState(
@@ -309,12 +336,15 @@ class NotificationSchedulerTest {
         assertEquals(0, plan.size)
     }
 
-    private fun reminder(id: String): ReminderItem {
+    private fun reminder(
+        id: String,
+        notificationsPerDay: Int = 1,
+    ): ReminderItem {
         return ReminderItem(
             id = id,
             text = "Reminder $id",
             schedule = ScheduleSettings(
-                notificationsPerDay = 1,
+                notificationsPerDay = notificationsPerDay,
             ),
         )
     }

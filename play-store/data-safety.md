@@ -17,7 +17,8 @@ Expected Play Console answers based on the current app code and Firebase Crashly
 Collection:
 - Reminder content and schedule data are not collected or sent off device by the app.
 - Firebase Crashlytics collects crash reports, stack traces, relevant app state, device metadata, app version, and a Crashlytics installation UUID for stability monitoring.
-- Developer-defined crash report keys/logs include technical metadata only, such as reminder count, scheduler state, notification permission state, import/export failure state, and app lifecycle breadcrumbs. Do not log reminder text, imported file contents, exported file contents, account identifiers, advertising identifiers, or precise location.
+- Developer-defined crash report keys/logs include technical metadata only, such as reminder count, scheduler state, notification permission state, notification channel importance, battery-optimization and power-save state, import/export failure state, and app lifecycle breadcrumbs. Do not log reminder text, imported file contents, exported file contents, account identifiers, advertising identifiers, or precise location.
+- Non-fatal reports sent by the app replace the exception message with the exception class chain. Email addresses, quoted free text, and content or file URIs are stripped from breadcrumb values before they are logged.
 
 Sharing:
 - Crash diagnostics are processed by Firebase Crashlytics for app stability monitoring.
