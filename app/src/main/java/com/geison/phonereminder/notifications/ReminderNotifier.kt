@@ -24,7 +24,7 @@ object ReminderNotifier {
         reminderText: String,
     ) {
         NotificationChannels.ensureCreated(context)
-        Diagnostics.log("show_reminder_notification")
+        val readiness = Diagnostics.refreshDelivery(context)
 
         val openAppIntent = PendingIntent.getActivity(
             context,
@@ -91,19 +91,32 @@ object ReminderNotifier {
                 Manifest.permission.POST_NOTIFICATIONS,
             ) != PackageManager.PERMISSION_GRANTED
         ) {
-            Diagnostics.log("show_reminder_notification_skipped_permission")
+            Diagnostics.event(
+                "show_reminder_notification",
+                mapOf("result" to "skipped") + readiness.attributes(),
+            )
             return
         }
 
         runCatching {
             NotificationManagerCompat.from(context).notify(notificationId, notification)
+        }.onSuccess {
+            Diagnostics.event(
+                "show_reminder_notification",
+                mapOf("result" to "shown") + readiness.attributes(),
+            )
         }.onFailure { error ->
             if (error is SecurityException) {
                 Diagnostics.recordNonFatal(
                     area = "notification_permission_rejected",
                     throwable = error,
+                    keys = readiness.attributes(),
                 )
             } else {
+                Diagnostics.event(
+                    "show_reminder_notification",
+                    mapOf("result" to "failed") + readiness.attributes(),
+                )
                 throw error
             }
         }

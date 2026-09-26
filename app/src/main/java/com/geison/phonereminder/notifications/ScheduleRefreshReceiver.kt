@@ -7,8 +7,18 @@ import com.geison.phonereminder.diagnostics.Diagnostics
 
 class ScheduleRefreshReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
-        Diagnostics.log("schedule_refresh_receiver_on_receive")
-        NotificationScheduler.scheduleToday(context)
+        Diagnostics.event(
+            "schedule_refresh_receiver",
+            mapOf("action" to (intent.action ?: "unknown").substringAfterLast('.')),
+        )
+        runCatching {
+            NotificationScheduler.scheduleToday(context)
+        }.onFailure { error ->
+            Diagnostics.recordNonFatal(
+                area = "schedule_refresh_receiver_failed",
+                throwable = error,
+            )
+        }
     }
 
     companion object {

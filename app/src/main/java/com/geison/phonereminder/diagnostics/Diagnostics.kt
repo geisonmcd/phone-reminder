@@ -4,37 +4,63 @@ import android.content.Context
 import android.content.pm.PackageInfo
 import android.content.pm.PackageManager
 import android.os.Build
-import androidx.core.app.NotificationManagerCompat
+import android.util.Log
+import com.geison.phonereminder.diagnostics.DiagnosticBreadcrumb.sanitizeValue
 import com.google.firebase.FirebaseApp
 import com.google.firebase.crashlytics.CustomKeysAndValues
 import com.google.firebase.crashlytics.FirebaseCrashlytics
 
 object Diagnostics {
-    private const val MAX_VALUE_LENGTH = 120
+    private const val TAG = "PhoneReminder"
     private var isEnabled = false
 
     fun initialize(context: Context) {
         isEnabled = FirebaseApp.getApps(context).isNotEmpty()
-        if (!isEnabled) {
-            return
-        }
-
         val packageInfo = context.packageInfo()
-        runCrashlytics { crashlytics ->
-            crashlytics.setCustomKeys(
-                CustomKeysAndValues.Builder()
-                    .putString("package_name", context.packageName)
-                    .putString("app_version_name", packageInfo.versionName ?: "unknown")
-                    .putLong("app_version_code", packageInfo.longVersionCodeCompat())
-                    .putString("android_sdk", Build.VERSION.SDK_INT.toString())
-                    .putBoolean("notifications_enabled", NotificationManagerCompat.from(context).areNotificationsEnabled())
-                    .build(),
-            )
+        val readiness = DeliveryReadiness.capture(context)
+        if (isEnabled) {
+            runCrashlytics { crashlytics ->
+                crashlytics.setCustomKeys(
+                    CustomKeysAndValues.Builder()
+                        .putString("package_name", context.packageName)
+                        .putString("app_version_name", packageInfo.versionName ?: "unknown")
+                        .putLong("app_version_code", packageInfo.longVersionCodeCompat())
+                        .putString("android_sdk", Build.VERSION.SDK_INT.toString())
+                        .putBoolean("notifications_enabled", readiness.notificationsEnabled)
+                        .putBoolean("post_notifications_granted", readiness.postNotificationsGranted)
+                        .putBoolean("reminder_channel_blocked", readiness.reminderChannelBlocked)
+                        .putBoolean("ignoring_battery_optimizations", readiness.ignoringBatteryOptimizations)
+                        .build(),
+                )
+            }
         }
-        log("app_start")
+        event(
+            "app_start",
+            linkedMapOf(
+                "version" to (packageInfo.versionName ?: "unknown"),
+                "sdk" to Build.VERSION.SDK_INT.toString(),
+            ) + readiness.attributes(),
+        )
+    }
+
+    internal fun refreshDelivery(context: Context): DeliveryReadiness {
+        val readiness = DeliveryReadiness.capture(context)
+        setKey("notifications_enabled", readiness.notificationsEnabled)
+        setKey("post_notifications_granted", readiness.postNotificationsGranted)
+        setKey("reminder_channel_blocked", readiness.reminderChannelBlocked)
+        setKey("ignoring_battery_optimizations", readiness.ignoringBatteryOptimizations)
+        return readiness
+    }
+
+    fun event(
+        name: String,
+        attributes: Map<String, String> = emptyMap(),
+    ) {
+        log(DiagnosticBreadcrumb.format(name, attributes))
     }
 
     fun log(message: String) {
+        Log.i(TAG, message)
         runCrashlytics { crashlytics ->
             crashlytics.log(message)
         }
@@ -63,7 +89,7 @@ object Diagnostics {
         value: String,
     ) {
         runCrashlytics { crashlytics ->
-            crashlytics.setCustomKey(key, value.safeValue())
+            crashlytics.setCustomKey(key, value.sanitizeValue())
         }
     }
 
@@ -72,12 +98,18 @@ object Diagnostics {
         throwable: Throwable,
         keys: Map<String, String> = emptyMap(),
     ) {
+        val breadcrumb = DiagnosticBreadcrumb.format(
+            name = "non_fatal",
+            attributes = linkedMapOf("area" to area) + keys,
+        )
+        Log.w(TAG, breadcrumb, throwable)
         runCrashlytics { crashlytics ->
+            crashlytics.log(breadcrumb)
             val builder = CustomKeysAndValues.Builder()
-                .putString("diagnostic_area", area.safeValue())
+                .putString("diagnostic_area", area.sanitizeValue())
 
             keys.forEach { (key, value) ->
-                builder.putString("diagnostic_$key", value.safeValue())
+                builder.putString("diagnostic_$key", value.sanitizeValue())
             }
 
             crashlytics.recordException(throwable, builder.build())
@@ -109,9 +141,5 @@ object Diagnostics {
             @Suppress("DEPRECATION")
             versionCode.toLong()
         }
-    }
-
-    private fun String.safeValue(): String {
-        return take(MAX_VALUE_LENGTH)
     }
 }

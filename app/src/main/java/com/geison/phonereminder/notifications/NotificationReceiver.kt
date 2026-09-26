@@ -17,7 +17,8 @@ import com.geison.phonereminder.diagnostics.Diagnostics
 
 class NotificationReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
-        Diagnostics.log("notification_receiver_on_receive")
+        val action = intent.action.diagnosticAction()
+        Diagnostics.event("notification_receiver", mapOf("action" to action))
 
         when (intent.action) {
             ACTION_DECREASE_FREQUENCY -> {
@@ -35,13 +36,18 @@ class NotificationReceiver : BroadcastReceiver() {
             ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) !=
             PackageManager.PERMISSION_GRANTED
         ) {
-            Diagnostics.setKey("notifications_permission_granted", false)
+            Diagnostics.refreshDelivery(context)
+            Diagnostics.event("show_reminder_skipped", mapOf("reason" to "permission"))
             return
         }
 
-        val reminderText = intent.getStringExtra(EXTRA_REMINDER_TEXT) ?: return
+        val reminderText = intent.getStringExtra(EXTRA_REMINDER_TEXT)
         val notificationId = intent.getIntExtra(EXTRA_NOTIFICATION_ID, 0)
-        val reminderId = intent.getStringExtra(EXTRA_REMINDER_ID) ?: return
+        val reminderId = intent.getStringExtra(EXTRA_REMINDER_ID)
+        if (reminderText.isNullOrBlank() || reminderId.isNullOrBlank()) {
+            Diagnostics.event("show_reminder_skipped", mapOf("reason" to "missing_payload"))
+            return
+        }
 
         ReminderNotifier.showReminder(
             context = context,
@@ -56,7 +62,14 @@ class NotificationReceiver : BroadcastReceiver() {
         intent: Intent,
         adjustment: FrequencyAdjustment,
     ) {
-        val reminderId = intent.getStringExtra(EXTRA_REMINDER_ID) ?: return
+        val reminderId = intent.getStringExtra(EXTRA_REMINDER_ID)
+        if (reminderId.isNullOrBlank()) {
+            Diagnostics.event(
+                "notification_frequency_skipped",
+                mapOf("reason" to "missing_id", "adjustment" to adjustment.name.lowercase()),
+            )
+            return
+        }
         val notificationId = intent.getIntExtra(EXTRA_NOTIFICATION_ID, 0)
         val state = ReminderStorage.load(context)
         val updatedReminders = state.reminders.map { reminder ->
@@ -67,11 +80,18 @@ class NotificationReceiver : BroadcastReceiver() {
             }
         }
         if (updatedReminders == state.reminders) {
+            Diagnostics.event(
+                "notification_frequency_skipped",
+                mapOf("reason" to "unchanged", "adjustment" to adjustment.name.lowercase()),
+            )
             return
         }
 
         ReminderStorage.save(context, state.copy(reminders = updatedReminders))
-        Diagnostics.log("notification_frequency_adjusted")
+        Diagnostics.event(
+            "notification_frequency_adjusted",
+            mapOf("adjustment" to adjustment.name.lowercase()),
+        )
         Diagnostics.setKey("notification_frequency_adjustment", adjustment.name.lowercase())
         NotificationManagerCompat.from(context).cancel(notificationId)
         NotificationScheduler.scheduleToday(context)
@@ -84,6 +104,15 @@ class NotificationReceiver : BroadcastReceiver() {
         const val EXTRA_REMINDER_TEXT = "extra_reminder_text"
         const val EXTRA_NOTIFICATION_ID = "extra_notification_id"
         const val EXTRA_REMINDER_ID = "extra_reminder_id"
+    }
+}
+
+private fun String?.diagnosticAction(): String {
+    return when (this) {
+        NotificationReceiver.ACTION_SHOW_REMINDER, null -> "show"
+        NotificationReceiver.ACTION_DECREASE_FREQUENCY -> "less_often"
+        NotificationReceiver.ACTION_INCREASE_FREQUENCY -> "more_often"
+        else -> substringAfterLast('.').ifBlank { "unknown" }
     }
 }
 

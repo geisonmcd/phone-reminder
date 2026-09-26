@@ -1,5 +1,6 @@
 # Changelog
 
+- 2026-09-25 — Recorded reminder delivery readiness and schedule outcomes in Crashlytics breadcrumbs, including why a notification was skipped.
 - 2026-08-14 — Published Google Drive backup reliability fixes to all Play tracks as 1.0.36 (39).
 - 2026-08-09 — Fixed Google Drive backup auth/scope reuse and R8 keep rules so release backups work reliably.
 - 2026-07-22 — Replaced the launcher and Play Store icon with a phone-and-bell design on a navy background.

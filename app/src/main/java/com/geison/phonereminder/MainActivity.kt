@@ -34,7 +34,11 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         pendingOpenReminderId = intent.getStringExtra(EXTRA_OPEN_REMINDER_ID)
-        Diagnostics.log("main_activity_on_create")
+        Diagnostics.refreshDelivery(this)
+        Diagnostics.event(
+            "main_activity_on_create",
+            mapOf("opened_from_notification" to (pendingOpenReminderId != null).toString()),
+        )
         Diagnostics.setKey("opened_from_notification", pendingOpenReminderId != null)
         enableEdgeToEdge()
         NotificationChannels.ensureCreated(this)
@@ -45,6 +49,11 @@ class MainActivity : ComponentActivity() {
                 contract = ActivityResultContracts.RequestPermission(),
             ) { granted ->
                 Diagnostics.setKey("notifications_permission_granted", granted)
+                Diagnostics.refreshDelivery(this@MainActivity)
+                Diagnostics.event(
+                    "notification_permission_result",
+                    mapOf("granted" to granted.toString()),
+                )
                 if (granted) {
                     viewModel.rescheduleNow()
                 }
@@ -65,6 +74,10 @@ class MainActivity : ComponentActivity() {
                         showRationale = false
                         permissionSkipped = true
                         Diagnostics.setKey("notification_permission_skipped", true)
+                        Diagnostics.event(
+                            "notification_permission_result",
+                            mapOf("granted" to "skipped"),
+                        )
                     },
                     title = { Text(stringResource(R.string.notification_rationale_title)) },
                     text = { Text(stringResource(R.string.notification_rationale_body)) },
@@ -84,6 +97,10 @@ class MainActivity : ComponentActivity() {
                                 showRationale = false
                                 permissionSkipped = true
                                 Diagnostics.setKey("notification_permission_skipped", true)
+                                Diagnostics.event(
+                                    "notification_permission_result",
+                                    mapOf("granted" to "skipped"),
+                                )
                             },
                         ) {
                             Text(stringResource(R.string.action_skip))
@@ -108,7 +125,10 @@ class MainActivity : ComponentActivity() {
         super.onNewIntent(intent)
         setIntent(intent)
         pendingOpenReminderId = intent.getStringExtra(EXTRA_OPEN_REMINDER_ID)
-        Diagnostics.log("main_activity_on_new_intent")
+        Diagnostics.event(
+            "main_activity_on_new_intent",
+            mapOf("opened_from_notification" to (pendingOpenReminderId != null).toString()),
+        )
         Diagnostics.setKey("opened_from_notification", pendingOpenReminderId != null)
     }
 
