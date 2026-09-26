@@ -29,7 +29,10 @@ object Diagnostics {
                         .putBoolean("notifications_enabled", readiness.notificationsEnabled)
                         .putBoolean("post_notifications_granted", readiness.postNotificationsGranted)
                         .putBoolean("reminder_channel_blocked", readiness.reminderChannelBlocked)
+                        .putString("reminder_channel_importance", readiness.reminderChannelImportance)
                         .putBoolean("ignoring_battery_optimizations", readiness.ignoringBatteryOptimizations)
+                        .putBoolean("power_save_mode", readiness.powerSaveMode)
+                        .putBoolean("device_idle_mode", readiness.deviceIdleMode)
                         .build(),
                 )
             }
@@ -48,7 +51,10 @@ object Diagnostics {
         setKey("notifications_enabled", readiness.notificationsEnabled)
         setKey("post_notifications_granted", readiness.postNotificationsGranted)
         setKey("reminder_channel_blocked", readiness.reminderChannelBlocked)
+        setKey("reminder_channel_importance", readiness.reminderChannelImportance)
         setKey("ignoring_battery_optimizations", readiness.ignoringBatteryOptimizations)
+        setKey("power_save_mode", readiness.powerSaveMode)
+        setKey("device_idle_mode", readiness.deviceIdleMode)
         return readiness
     }
 
@@ -98,21 +104,32 @@ object Diagnostics {
         throwable: Throwable,
         keys: Map<String, String> = emptyMap(),
     ) {
+        val exceptionChain = DiagnosticBreadcrumb.exceptionChain(throwable)
         val breadcrumb = DiagnosticBreadcrumb.format(
             name = "non_fatal",
-            attributes = linkedMapOf("area" to area) + keys,
+            attributes = linkedMapOf(
+                "area" to area,
+                "exception" to exceptionChain,
+            ) + keys,
         )
-        Log.w(TAG, breadcrumb, throwable)
+        Log.w(TAG, breadcrumb)
         runCrashlytics { crashlytics ->
             crashlytics.log(breadcrumb)
             val builder = CustomKeysAndValues.Builder()
                 .putString("diagnostic_area", area.sanitizeValue())
+                .putString("diagnostic_exception", exceptionChain)
 
             keys.forEach { (key, value) ->
-                builder.putString("diagnostic_$key", value.sanitizeValue())
+                builder.putString(
+                    "diagnostic_${DiagnosticBreadcrumb.sanitizeToken(key)}",
+                    value.sanitizeValue(),
+                )
             }
 
-            crashlytics.recordException(throwable, builder.build())
+            crashlytics.recordException(
+                DiagnosticBreadcrumb.redactedFailure(area, throwable),
+                builder.build(),
+            )
         }
     }
 

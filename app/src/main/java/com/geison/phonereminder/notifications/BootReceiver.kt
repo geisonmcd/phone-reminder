@@ -9,7 +9,7 @@ class BootReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         Diagnostics.event(
             "boot_receiver",
-            mapOf("action" to (intent.action ?: "unknown").substringAfterLast('.')),
+            mapOf("action" to bootAction(intent.action)),
         )
         runCatching {
             NotificationScheduler.scheduleToday(context)
@@ -18,6 +18,14 @@ class BootReceiver : BroadcastReceiver() {
                 area = "boot_reschedule_failed",
                 throwable = error,
             )
+        }
+    }
+
+    private fun bootAction(action: String?): String {
+        return when (action) {
+            Intent.ACTION_BOOT_COMPLETED -> "boot_completed"
+            Intent.ACTION_MY_PACKAGE_REPLACED -> "package_replaced"
+            else -> "other"
         }
     }
 }

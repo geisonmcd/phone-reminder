@@ -9,7 +9,7 @@ class ScheduleRefreshReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         Diagnostics.event(
             "schedule_refresh_receiver",
-            mapOf("action" to (intent.action ?: "unknown").substringAfterLast('.')),
+            mapOf("action" to refreshAction(intent.action)),
         )
         runCatching {
             NotificationScheduler.scheduleToday(context)
@@ -18,6 +18,13 @@ class ScheduleRefreshReceiver : BroadcastReceiver() {
                 area = "schedule_refresh_receiver_failed",
                 throwable = error,
             )
+        }
+    }
+
+    private fun refreshAction(action: String?): String {
+        return when (action) {
+            ACTION_REFRESH_SCHEDULE -> "refresh_schedule"
+            else -> "other"
         }
     }
 
