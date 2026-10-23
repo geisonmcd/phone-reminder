@@ -1,7 +1,8 @@
 package com.geison.phonereminder
 
+import android.app.Activity
 import android.app.Application
-import android.content.Intent
+import android.app.PendingIntent
 import android.net.Uri
 import androidx.activity.result.ActivityResult
 import androidx.lifecycle.AndroidViewModel
@@ -9,8 +10,12 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.geison.phonereminder.R
-import com.geison.phonereminder.backup.GoogleDriveAuthRequiredException
+import com.geison.phonereminder.backup.DriveApiException
+import com.geison.phonereminder.backup.DriveAuthorization
+import com.geison.phonereminder.backup.GoogleDriveAuthorizationException
 import com.geison.phonereminder.backup.GoogleDriveBackupManager
+import com.geison.phonereminder.backup.GoogleDriveConsentRequiredException
+import com.geison.phonereminder.backup.GoogleDriveFailure
 import com.geison.phonereminder.data.AppState
 import com.geison.phonereminder.data.MAX_NOTIFICATIONS_PER_DAY
 import com.geison.phonereminder.data.ReminderExchange
@@ -22,8 +27,8 @@ import com.geison.phonereminder.data.ScheduleSettings
 import com.geison.phonereminder.diagnostics.Diagnostics
 import com.geison.phonereminder.notifications.NotificationScheduler
 import com.geison.phonereminder.notifications.ReminderNotifier
-import com.google.android.gms.auth.api.signin.GoogleSignIn
 import com.google.android.gms.common.api.ApiException
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -39,15 +44,17 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val mutableOpenReminderRequest = MutableStateFlow<String?>(null)
     private val mutableGoogleDriveMessage = MutableStateFlow<String?>(null)
     private val mutableGoogleDriveRestorePreview = MutableStateFlow<ImportPreviewResult.Ready?>(null)
-    private val mutableGoogleDriveAuthIntent = MutableStateFlow<Intent?>(null)
-    private var pendingGoogleDriveRetryAction: GoogleDriveAction? = null
+    private val mutableGoogleDriveConsentRequest = MutableStateFlow<PendingIntent?>(null)
+    private val mutableGoogleDriveBusy = MutableStateFlow(false)
+    private var pendingGoogleDriveConsentAction: GoogleDriveAction? = null
     private var scheduleNotificationsJob: Job? = null
 
     val state = repository.state
     val openReminderRequest = mutableOpenReminderRequest.asStateFlow()
     val googleDriveMessage = mutableGoogleDriveMessage.asStateFlow()
     val googleDriveRestorePreview = mutableGoogleDriveRestorePreview.asStateFlow()
-    val googleDriveAuthIntent = mutableGoogleDriveAuthIntent.asStateFlow()
+    val googleDriveConsentRequest = mutableGoogleDriveConsentRequest.asStateFlow()
+    val googleDriveBusy = mutableGoogleDriveBusy.asStateFlow()
 
     enum class GoogleDriveAction { BACKUP, RESTORE }
 
@@ -181,82 +188,58 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         scheduleNotifications()
     }
 
-    fun getGoogleDriveSignInIntent() = googleDriveManager.getSignInIntent()
-
-    fun getAuthorizedGoogleDriveAccount() = if (BuildConfig.GOOGLE_DRIVE_BACKUP_ENABLED) {
-        googleDriveManager.getAuthorizedAccount()
-    } else {
-        null
-    }
-
-    fun performGoogleDriveAction(
-        account: com.google.android.gms.auth.api.signin.GoogleSignInAccount,
-        action: GoogleDriveAction,
-    ) {
-        if (!BuildConfig.GOOGLE_DRIVE_BACKUP_ENABLED) {
+    /** Entry point for the Drive buttons: silently authorizes, or asks the UI to show consent. */
+    fun startGoogleDriveAction(action: GoogleDriveAction) {
+        if (!BuildConfig.GOOGLE_DRIVE_BACKUP_ENABLED || mutableGoogleDriveBusy.value) {
             return
         }
-
-        when (action) {
-            GoogleDriveAction.BACKUP -> performGoogleDriveBackup(account)
-            GoogleDriveAction.RESTORE -> performGoogleDriveRestore(account)
-        }
-    }
-
-    fun onGoogleDriveSignInResult(result: ActivityResult, action: GoogleDriveAction) {
-        if (!BuildConfig.GOOGLE_DRIVE_BACKUP_ENABLED) {
-            return
-        }
-
-        val task = GoogleSignIn.getSignedInAccountFromIntent(result.data)
-        try {
-            val account = task.getResult(ApiException::class.java)
-            if (account == null) {
-                mutableGoogleDriveMessage.value = getApplication<Application>().getString(
-                    R.string.message_google_drive_sign_in_failed,
-                )
-                return
-            }
-            performGoogleDriveAction(account, action)
-        } catch (e: ApiException) {
-            val message = if (e.statusCode == com.google.android.gms.auth.api.signin.GoogleSignInStatusCodes.SIGN_IN_CANCELLED) {
-                getApplication<Application>().getString(R.string.message_google_drive_sign_in_cancelled)
-            } else {
-                getApplication<Application>().getString(
-                    R.string.message_google_drive_sign_in_failed_with_code,
-                    e.statusCode,
-                )
-            }
-            mutableGoogleDriveMessage.value = message
-            Diagnostics.setKey("google_drive_sign_in_status_code", e.statusCode)
-            Diagnostics.recordNonFatal(
-                area = "google_drive_sign_in_failed",
-                throwable = e,
+        mutableGoogleDriveBusy.value = true
+        mutableGoogleDriveMessage.value = getApplication<Application>().getString(R.string.message_google_drive_working)
+        viewModelScope.launch {
+            val authorization = runCatching { googleDriveManager.authorize() }
+            authorization.fold(
+                onSuccess = { handleGoogleDriveAuthorization(it, action) },
+                onFailure = { error ->
+                    finishGoogleDriveFailure(action, "google_drive_authorize_failed", error)
+                },
             )
         }
     }
 
-    fun onGoogleDriveAuthRecoveryResult(result: ActivityResult) {
+    /** Called with the result of the consent [android.app.PendingIntent] launched by the UI. */
+    fun onGoogleDriveConsentResult(result: ActivityResult) {
         if (!BuildConfig.GOOGLE_DRIVE_BACKUP_ENABLED) {
             return
         }
-        val action = pendingGoogleDriveRetryAction
-        pendingGoogleDriveRetryAction = null
-        mutableGoogleDriveAuthIntent.value = null
-        if (result.resultCode != android.app.Activity.RESULT_OK || action == null) {
+        val action = pendingGoogleDriveConsentAction
+        pendingGoogleDriveConsentAction = null
+        mutableGoogleDriveConsentRequest.value = null
+        if (action == null) {
+            mutableGoogleDriveBusy.value = false
+            return
+        }
+        if (result.resultCode != Activity.RESULT_OK) {
+            Diagnostics.log("google_drive_consent_cancelled_result_${result.resultCode}")
+            mutableGoogleDriveBusy.value = false
             mutableGoogleDriveMessage.value = getApplication<Application>().getString(
                 R.string.message_google_drive_sign_in_cancelled,
             )
             return
         }
-        val account = googleDriveManager.getAuthorizedAccount()
-        if (account == null) {
-            mutableGoogleDriveMessage.value = getApplication<Application>().getString(
-                R.string.message_google_drive_auth_required,
-            )
-            return
-        }
-        performGoogleDriveAction(account, action)
+        runCatching { googleDriveManager.authorizationFromIntent(result.data) }.fold(
+            onSuccess = { authorization ->
+                if (authorization is DriveAuthorization.Granted) {
+                    runGoogleDriveAction(authorization.accessToken, action)
+                } else {
+                    finishGoogleDriveFailure(
+                        action,
+                        "google_drive_consent_incomplete",
+                        GoogleDriveAuthorizationException("Consent finished without a token."),
+                    )
+                }
+            },
+            onFailure = { error -> finishGoogleDriveFailure(action, "google_drive_consent_failed", error) },
+        )
     }
 
     fun clearGoogleDriveMessage() {
@@ -267,8 +250,15 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         mutableGoogleDriveRestorePreview.value = null
     }
 
-    fun clearGoogleDriveAuthIntent() {
-        mutableGoogleDriveAuthIntent.value = null
+    fun onGoogleDriveConsentLaunched() {
+        mutableGoogleDriveConsentRequest.value = null
+    }
+
+    fun onGoogleDriveConsentLaunchFailed(error: Throwable) {
+        val action = pendingGoogleDriveConsentAction ?: GoogleDriveAction.BACKUP
+        pendingGoogleDriveConsentAction = null
+        mutableGoogleDriveConsentRequest.value = null
+        finishGoogleDriveFailure(action, "google_drive_consent_launch_failed", error)
     }
 
     fun importGoogleDriveReminders(importedState: AppState) {
@@ -305,87 +295,130 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         )
     }
 
-    private fun performGoogleDriveBackup(account: com.google.android.gms.auth.api.signin.GoogleSignInAccount) {
-        viewModelScope.launch {
-            val content = ReminderExchange.export(state.value)
-            val backupResult = googleDriveManager.backup(account, content)
-            mutableGoogleDriveMessage.value = backupResult.fold(
-                onSuccess = {
-                    val count = state.value.reminders.size
-                    val syncedAt = DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT)
-                        .format(Date())
-                    getApplication<Application>().resources.getQuantityString(
-                        R.plurals.message_google_drive_backup_status,
-                        count,
-                        count,
-                        syncedAt,
-                    )
-                },
-                onFailure = { error ->
-                    handleGoogleDriveFailure(
-                        action = GoogleDriveAction.BACKUP,
-                        area = "google_drive_backup_failed",
-                        error = error,
-                        failureMessageRes = R.string.message_google_drive_backup_failed,
-                    )
-                },
-            )
+    private fun handleGoogleDriveAuthorization(authorization: DriveAuthorization, action: GoogleDriveAction) {
+        when (authorization) {
+            is DriveAuthorization.Granted -> runGoogleDriveAction(authorization.accessToken, action)
+            is DriveAuthorization.NeedsConsent -> {
+                Diagnostics.log("google_drive_consent_requested")
+                pendingGoogleDriveConsentAction = action
+                mutableGoogleDriveConsentRequest.value = authorization.pendingIntent
+            }
         }
     }
 
-    private fun performGoogleDriveRestore(account: com.google.android.gms.auth.api.signin.GoogleSignInAccount) {
+    private fun runGoogleDriveAction(accessToken: String, action: GoogleDriveAction) {
+        mutableGoogleDriveBusy.value = true
         viewModelScope.launch {
-            val restoreResult = googleDriveManager.restore(account)
-            restoreResult.fold(
-                onSuccess = { content ->
-                    try {
-                        val importedState = ReminderExchange.import(content)
-                        mutableGoogleDriveRestorePreview.value = ImportPreviewResult.Ready(
-                            importedState = importedState,
-                            currentReminderCount = state.value.reminders.size,
-                        )
-                    } catch (error: Exception) {
-                        mutableGoogleDriveMessage.value = getApplication<Application>().getString(
-                            R.string.message_google_drive_restore_failed,
-                            error.message ?: getApplication<Application>().getString(R.string.message_unknown_error),
-                        )
+            when (action) {
+                GoogleDriveAction.BACKUP -> performGoogleDriveBackup(accessToken)
+                GoogleDriveAction.RESTORE -> performGoogleDriveRestore(accessToken)
+            }
+        }
+    }
+
+    private suspend fun performGoogleDriveBackup(accessToken: String) {
+        Diagnostics.log("google_drive_backup_start")
+        val content = ReminderExchange.export(state.value)
+        runCatching { googleDriveManager.backup(accessToken, content) }.fold(
+            onSuccess = {
+                mutableGoogleDriveBusy.value = false
+                val count = state.value.reminders.size
+                Diagnostics.setKey("last_google_drive_backup_count", count)
+                val syncedAt = DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT)
+                    .format(Date())
+                mutableGoogleDriveMessage.value = getApplication<Application>().resources.getQuantityString(
+                    R.plurals.message_google_drive_backup_status,
+                    count,
+                    count,
+                    syncedAt,
+                )
+            },
+            onFailure = { error ->
+                finishGoogleDriveFailure(GoogleDriveAction.BACKUP, "google_drive_backup_failed", error)
+            },
+        )
+    }
+
+    private suspend fun performGoogleDriveRestore(accessToken: String) {
+        Diagnostics.log("google_drive_restore_start")
+        runCatching {
+            val content = googleDriveManager.restore(accessToken)
+            ReminderExchange.import(content)
+        }.fold(
+            onSuccess = { importedState ->
+                mutableGoogleDriveBusy.value = false
+                mutableGoogleDriveMessage.value = null
+                mutableGoogleDriveRestorePreview.value = ImportPreviewResult.Ready(
+                    importedState = importedState,
+                    currentReminderCount = state.value.reminders.size,
+                )
+            },
+            onFailure = { error ->
+                finishGoogleDriveFailure(GoogleDriveAction.RESTORE, "google_drive_restore_failed", error)
+            },
+        )
+    }
+
+    private fun finishGoogleDriveFailure(action: GoogleDriveAction, area: String, error: Throwable) {
+        if (error is CancellationException) {
+            mutableGoogleDriveBusy.value = false
+            return
+        }
+        // A cached grant was revoked mid-call: ask for consent again instead of failing.
+        if (error is GoogleDriveConsentRequiredException) {
+            pendingGoogleDriveConsentAction = action
+            mutableGoogleDriveConsentRequest.value = error.pendingIntent
+            return
+        }
+        mutableGoogleDriveBusy.value = false
+        val statusCode = (error as? ApiException)?.statusCode
+        val failure = GoogleDriveFailure.classify(error, statusCode)
+        if (failure != GoogleDriveFailure.CANCELLED && failure != GoogleDriveFailure.NO_BACKUP) {
+            Diagnostics.recordNonFatal(
+                area = area,
+                throwable = error,
+                keys = buildMap {
+                    put("failure", failure.name)
+                    statusCode?.let { put("status_code", it.toString()) }
+                    (error as? DriveApiException)?.let {
+                        put("http_code", it.httpCode.toString())
+                        put("reason", it.reason.orEmpty())
                     }
                 },
-                onFailure = { error ->
-                    mutableGoogleDriveMessage.value = handleGoogleDriveFailure(
-                        action = GoogleDriveAction.RESTORE,
-                        area = "google_drive_restore_failed",
-                        error = error,
-                        failureMessageRes = R.string.message_google_drive_restore_failed,
-                    )
-                },
             )
         }
+        mutableGoogleDriveMessage.value = googleDriveFailureMessage(action, failure, error, statusCode)
     }
 
-    private fun handleGoogleDriveFailure(
+    private fun googleDriveFailureMessage(
         action: GoogleDriveAction,
-        area: String,
+        failure: GoogleDriveFailure,
         error: Throwable,
-        failureMessageRes: Int,
+        statusCode: Int?,
     ): String {
-        Diagnostics.recordNonFatal(area = area, throwable = error)
-        val authError = error as? GoogleDriveAuthRequiredException
-            ?: error.cause as? GoogleDriveAuthRequiredException
-        if (authError != null) {
-            val recoveryIntent = authError.recoveryIntent
-            if (recoveryIntent != null) {
-                pendingGoogleDriveRetryAction = action
-                mutableGoogleDriveAuthIntent.value = recoveryIntent
-                return getApplication<Application>().getString(R.string.message_google_drive_auth_required)
+        val app = getApplication<Application>()
+        return when (failure) {
+            GoogleDriveFailure.CANCELLED -> app.getString(R.string.message_google_drive_sign_in_cancelled)
+            GoogleDriveFailure.APP_NOT_REGISTERED ->
+                app.getString(R.string.message_google_drive_app_not_registered, statusCode ?: 10)
+            GoogleDriveFailure.DRIVE_API_DISABLED -> app.getString(R.string.message_google_drive_api_disabled)
+            GoogleDriveFailure.PERMISSION_MISSING -> app.getString(R.string.message_google_drive_auth_required)
+            GoogleDriveFailure.NO_BACKUP -> app.getString(R.string.message_google_drive_no_backup_found)
+            GoogleDriveFailure.STORAGE_FULL -> app.getString(R.string.message_google_drive_storage_full)
+            GoogleDriveFailure.NETWORK -> app.getString(R.string.message_google_drive_network)
+            GoogleDriveFailure.UNKNOWN -> {
+                val detail = statusCode?.let { app.getString(R.string.message_google_drive_status_code, it) }
+                    ?: error.message
+                    ?: app.getString(R.string.message_unknown_error)
+                app.getString(
+                    when (action) {
+                        GoogleDriveAction.BACKUP -> R.string.message_google_drive_backup_failed
+                        GoogleDriveAction.RESTORE -> R.string.message_google_drive_restore_failed
+                    },
+                    detail,
+                )
             }
-            googleDriveManager.signOut()
-            return getApplication<Application>().getString(R.string.message_google_drive_auth_required)
         }
-        return getApplication<Application>().getString(
-            failureMessageRes,
-            error.message ?: getApplication<Application>().getString(R.string.message_unknown_error),
-        )
     }
 
     fun exportReminders(uri: Uri): String {

@@ -1,131 +1,151 @@
 package com.geison.phonereminder.backup
 
+import android.app.PendingIntent
 import android.content.Context
-import com.geison.phonereminder.R
-import com.google.android.gms.auth.UserRecoverableAuthException
-import com.google.android.gms.auth.api.signin.GoogleSignIn
-import com.google.android.gms.auth.api.signin.GoogleSignInAccount
-import com.google.android.gms.auth.api.signin.GoogleSignInClient
-import com.google.android.gms.auth.api.signin.GoogleSignInOptions
+import android.content.Intent
+import com.google.android.gms.auth.api.identity.AuthorizationClient
+import com.google.android.gms.auth.api.identity.AuthorizationRequest
+import com.google.android.gms.auth.api.identity.AuthorizationResult
+import com.google.android.gms.auth.api.identity.ClearTokenRequest
+import com.google.android.gms.auth.api.identity.Identity
 import com.google.android.gms.common.api.Scope
-import com.google.api.client.googleapis.extensions.android.gms.auth.GoogleAccountCredential
-import com.google.api.client.googleapis.extensions.android.gms.auth.UserRecoverableAuthIOException
-import com.google.api.client.http.ByteArrayContent
-import com.google.api.client.http.javanet.NetHttpTransport
-import com.google.api.client.json.gson.GsonFactory
-import com.google.api.services.drive.Drive
-import com.google.api.services.drive.DriveScopes
+import com.google.android.gms.tasks.Task
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
+import kotlin.coroutines.resume
+import kotlin.coroutines.resumeWithException
 
-class GoogleDriveBackupManager(private val context: Context) {
+/** Outcome of asking Google Play services for a Drive access token. */
+sealed interface DriveAuthorization {
+    data class Granted(val accessToken: String) : DriveAuthorization
 
-    private val driveScope = Scope(DriveScopes.DRIVE_FILE)
+    /** The user must approve the Drive permission (account picker + consent screen). */
+    data class NeedsConsent(val pendingIntent: PendingIntent) : DriveAuthorization
+}
 
-    private val signInClient: GoogleSignInClient by lazy {
-        val gso = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
-            .requestEmail()
-            .requestScopes(driveScope)
+/**
+ * Google Drive backup/restore built on the current Identity AuthorizationClient API.
+ *
+ * The legacy GoogleSignIn + GoogleAccountCredential flow is deprecated and, on Android 8+,
+ * `GoogleAccountCredential.setSelectedAccountName` silently drops the account when it is not
+ * visible through AccountManager, so token requests failed after a "successful" sign-in.
+ */
+class GoogleDriveBackupManager(
+    context: Context,
+    private val driveClient: DriveBackupClient = DriveBackupClient(),
+) {
+    private val appContext = context.applicationContext
+    private val authorizationClient: AuthorizationClient by lazy {
+        Identity.getAuthorizationClient(appContext)
+    }
+
+    private val authorizationRequest: AuthorizationRequest by lazy {
+        AuthorizationRequest.builder()
+            .setRequestedScopes(listOf(Scope(DRIVE_FILE_SCOPE)))
             .build()
-        GoogleSignIn.getClient(context, gso)
     }
 
-    fun getSignInIntent() = signInClient.signInIntent
-
-    fun getAuthorizedAccount(): GoogleSignInAccount? {
-        val account = GoogleSignIn.getLastSignedInAccount(context) ?: return null
-        return account.takeIf { GoogleSignIn.hasPermissions(it, driveScope) }
+    /** Silently returns a token when the user already granted access; otherwise a consent intent. */
+    suspend fun authorize(): DriveAuthorization {
+        return authorizationClient.authorize(authorizationRequest).await().toDriveAuthorization()
     }
 
-    fun signOut() {
-        signInClient.signOut()
+    /** Parses the result of the consent [PendingIntent]. Throws ApiException on failure/cancel. */
+    fun authorizationFromIntent(data: Intent?): DriveAuthorization {
+        return authorizationClient.getAuthorizationResultFromIntent(data).toDriveAuthorization()
     }
 
-    suspend fun backup(account: GoogleSignInAccount, content: String): Result<Unit> =
-        withContext(Dispatchers.IO) {
-            runCatching {
-                val drive = buildDriveService(account)
-                val existing = findBackupFile(drive)
-                val media = ByteArrayContent(MIME_TYPE, content.toByteArray(Charsets.UTF_8))
-                if (existing != null) {
-                    drive.files().update(existing.id, null, media).execute()
-                } else {
-                    val metadata = com.google.api.services.drive.model.File().apply {
-                        name = BACKUP_FILE_NAME
-                        mimeType = MIME_TYPE
-                    }
-                    drive.files().create(metadata, media).setFields("id").execute()
-                }
-                Unit
-            }.recoverCatching { error ->
-                throw mapAuthFailure(error)
-            }
-        }
-
-    suspend fun restore(account: GoogleSignInAccount): Result<String> =
-        withContext(Dispatchers.IO) {
-            runCatching {
-                val drive = buildDriveService(account)
-                val existing = findBackupFile(drive)
-                    ?: throw IllegalStateException(
-                        context.getString(R.string.message_google_drive_no_backup_found),
-                    )
-                val outputStream = java.io.ByteArrayOutputStream()
-                drive.files().get(existing.id).executeMediaAndDownloadTo(outputStream)
-                outputStream.toString(Charsets.UTF_8.name())
-            }.recoverCatching { error ->
-                throw mapAuthFailure(error)
-            }
-        }
-
-    private fun findBackupFile(drive: Drive): com.google.api.services.drive.model.File? {
-        val query = "name = '$BACKUP_FILE_NAME' and 'me' in owners and trashed = false"
-        val result = drive.files().list()
-            .setQ(query)
-            .setSpaces("drive")
-            .setFields("files(id, name)")
-            .setPageSize(10)
-            .execute()
-        return result.files.firstOrNull()
-    }
-
-    private fun buildDriveService(account: GoogleSignInAccount): Drive {
-        val credential = GoogleAccountCredential.usingOAuth2(
-            context,
-            listOf(DriveScopes.DRIVE_FILE),
+    suspend fun backup(accessToken: String, content: String): String = withTokenRefresh(accessToken) { token ->
+        driveClient.uploadBackup(
+            accessToken = token,
+            fileName = BACKUP_FILE_NAME,
+            mimeType = MIME_TYPE,
+            content = content.toByteArray(Charsets.UTF_8),
         )
-        val accountName = account.email
-            ?: account.account?.name
-            ?: throw IllegalStateException("Signed-in account has no email.")
-        credential.selectedAccountName = accountName
-        return Drive.Builder(
-            NetHttpTransport(),
-            GsonFactory(),
-            credential,
-        ).setApplicationName(context.getString(R.string.app_name)).build()
     }
 
-    private fun mapAuthFailure(error: Throwable): Throwable {
-        val recoverable = generateSequence(error) { it.cause }
-            .firstOrNull {
-                it is UserRecoverableAuthIOException || it is UserRecoverableAuthException
-            }
-        return when (recoverable) {
-            is UserRecoverableAuthIOException ->
-                GoogleDriveAuthRequiredException(recoverable.intent, recoverable)
-            is UserRecoverableAuthException ->
-                GoogleDriveAuthRequiredException(recoverable.intent, recoverable)
-            else -> error
+    suspend fun restore(accessToken: String): String = withTokenRefresh(accessToken) { token ->
+        val file = driveClient.findBackupFile(token, BACKUP_FILE_NAME)
+            ?: throw GoogleDriveNoBackupException()
+        driveClient.download(token, file.id).toString(Charsets.UTF_8)
+    }
+
+    private suspend fun <T> withTokenRefresh(accessToken: String, block: (String) -> T): T {
+        return withContext(Dispatchers.IO) {
+            DriveTokenRetry.run(
+                initialToken = accessToken,
+                refreshToken = { staleToken -> refreshToken(staleToken) },
+                block = block,
+            )
         }
+    }
+
+    /** Drops a rejected (expired/revoked) token from the cache and silently asks for a new one. */
+    private suspend fun refreshToken(staleToken: String): String? {
+        runCatching {
+            authorizationClient.clearToken(
+                ClearTokenRequest.builder().setToken(staleToken).build(),
+            ).await()
+        }
+        return when (val auth = authorize()) {
+            is DriveAuthorization.Granted -> auth.accessToken.takeIf { it != staleToken }
+            is DriveAuthorization.NeedsConsent -> throw GoogleDriveConsentRequiredException(auth.pendingIntent)
+        }
+    }
+
+    private fun AuthorizationResult.toDriveAuthorization(): DriveAuthorization {
+        val pendingIntent = pendingIntent
+        if (hasResolution() && pendingIntent != null) {
+            return DriveAuthorization.NeedsConsent(pendingIntent)
+        }
+        val token = accessToken
+        if (token.isNullOrBlank() || DRIVE_FILE_SCOPE !in grantedScopes.orEmpty()) {
+            throw GoogleDriveAuthorizationException(
+                "Google did not grant Drive access (scopes: ${grantedScopes.orEmpty().joinToString()}).",
+            )
+        }
+        return DriveAuthorization.Granted(token)
     }
 
     companion object {
+        const val DRIVE_FILE_SCOPE = "https://www.googleapis.com/auth/drive.file"
         const val BACKUP_FILE_NAME = "Smart Random Reminder Backup.txt"
         const val MIME_TYPE = "text/plain"
     }
 }
 
-class GoogleDriveAuthRequiredException(
-    val recoveryIntent: android.content.Intent?,
-    cause: Throwable,
-) : Exception(cause.message ?: "Google Drive authorization required.", cause)
+/** Runs a Drive call and retries exactly once with a fresh token when Drive answers 401. */
+object DriveTokenRetry {
+    suspend fun <T> run(
+        initialToken: String,
+        refreshToken: suspend (staleToken: String) -> String?,
+        block: (String) -> T,
+    ): T {
+        return try {
+            block(initialToken)
+        } catch (error: DriveApiException) {
+            if (!error.isUnauthorized) throw error
+            val freshToken = refreshToken(initialToken) ?: throw error
+            block(freshToken)
+        }
+    }
+}
+
+class GoogleDriveNoBackupException : Exception("No backup found in Google Drive.")
+
+class GoogleDriveAuthorizationException(message: String) : Exception(message)
+
+class GoogleDriveConsentRequiredException(val pendingIntent: PendingIntent) :
+    Exception("Google Drive permission must be granted again.")
+
+private suspend fun <T> Task<T>.await(): T = suspendCancellableCoroutine { continuation ->
+    addOnCompleteListener { task ->
+        val exception = task.exception
+        when {
+            exception != null -> continuation.resumeWithException(exception)
+            task.isCanceled -> continuation.cancel()
+            else -> continuation.resume(task.result)
+        }
+    }
+}

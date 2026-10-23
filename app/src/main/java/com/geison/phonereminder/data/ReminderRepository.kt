@@ -77,8 +77,9 @@ class ReminderRepository(private val context: Context) {
     }
 
     fun replaceState(state: AppState) {
-        mutableState.value = state
-        ReminderStorage.save(context, state)
+        val normalized = state.normalized()
+        mutableState.value = normalized
+        ReminderStorage.save(context, normalized)
     }
 
     fun updateNotificationWindow(
@@ -90,7 +91,7 @@ class ReminderRepository(private val context: Context) {
                 notificationWindow = NotificationWindowSettings(
                     startHour = startHour,
                     endHour = endHour,
-                ),
+                ).normalized(),
             )
         }
     }
