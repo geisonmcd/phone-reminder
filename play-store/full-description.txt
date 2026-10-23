@@ -11,6 +11,7 @@ Features:
 - Case-insensitive reminder filtering
 - Plain-text export and import
 - Local storage on your device
+- Optional backup and restore with your own Google Drive
 
 Smart Random Reminder is designed for repeated prompts like:
 - Focus cues
@@ -21,7 +22,7 @@ Smart Random Reminder is designed for repeated prompts like:
 
 Privacy:
 - No account required
-- No cloud sync
 - No ads or behavior analytics
 - Crash reports collect technical diagnostics without reminder text
-- Reminder data stays on your device unless you export it yourself
+- Reminder data stays on your device unless you export it yourself or turn on the optional Google Drive backup
+- Google Drive backup saves a backup file to your own Google Drive and can only access files the app creates

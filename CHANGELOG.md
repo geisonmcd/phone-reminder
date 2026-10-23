@@ -1,5 +1,6 @@
 # Changelog
 
+- 2026-10-23 — Updated the Play full description and data safety notes to cover the optional Google Drive backup instead of claiming no cloud sync.
 - 2026-10-23 — Added a GitHub Pages home page, documented optional Google Drive backup (drive.file scope) in the privacy policy, and refreshed Play release notes for the next release (versionCode >= 40).
 - 2026-10-23 — Rebuilt Google Drive backup on AuthorizationClient + Drive REST with clearer errors, added explicit Auto Backup rules, and fixed the settings hour-stepper crash.
 - 2026-08-14 — Published Google Drive backup reliability fixes to all Play tracks as 1.0.36 (39).
