@@ -4,6 +4,7 @@ import android.content.Intent
 import android.provider.Settings
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.IntentSenderRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -144,10 +145,10 @@ fun ReminderApp(
     var showingPrivacyPolicy by rememberSaveable { mutableStateOf(false) }
     var configMessage by rememberSaveable { mutableStateOf<String?>(null) }
     var pendingImport by remember { mutableStateOf<ImportPreviewResult.Ready?>(null) }
-    var pendingGoogleDriveAction by remember { mutableStateOf<MainViewModel.GoogleDriveAction?>(null) }
     val googleDriveMessage by viewModel.googleDriveMessage.collectAsStateWithLifecycle()
     val googleDriveRestorePreview by viewModel.googleDriveRestorePreview.collectAsStateWithLifecycle()
-    val googleDriveAuthIntent by viewModel.googleDriveAuthIntent.collectAsStateWithLifecycle()
+    val googleDriveConsentRequest by viewModel.googleDriveConsentRequest.collectAsStateWithLifecycle()
+    val googleDriveBusy by viewModel.googleDriveBusy.collectAsStateWithLifecycle()
     val context = LocalContext.current
 
     val exportLauncher = rememberLauncherForActivityResult(
@@ -180,26 +181,20 @@ fun ReminderApp(
         }
     }
 
-    val googleDriveSignInLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.StartActivityForResult(),
+    val googleDriveConsentLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartIntentSenderForResult(),
     ) { result ->
-        val action = pendingGoogleDriveAction
-        pendingGoogleDriveAction = null
-        if (action != null) {
-            viewModel.onGoogleDriveSignInResult(result, action)
-        }
+        viewModel.onGoogleDriveConsentResult(result)
     }
 
-    val googleDriveAuthRecoveryLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.StartActivityForResult(),
-    ) { result ->
-        viewModel.onGoogleDriveAuthRecoveryResult(result)
-    }
-
-    LaunchedEffect(googleDriveAuthIntent) {
-        val intent = googleDriveAuthIntent ?: return@LaunchedEffect
-        googleDriveAuthRecoveryLauncher.launch(intent)
-        viewModel.clearGoogleDriveAuthIntent()
+    LaunchedEffect(googleDriveConsentRequest) {
+        val pendingIntent = googleDriveConsentRequest ?: return@LaunchedEffect
+        viewModel.onGoogleDriveConsentLaunched()
+        runCatching {
+            googleDriveConsentLauncher.launch(
+                IntentSenderRequest.Builder(pendingIntent.intentSender).build(),
+            )
+        }.onFailure { error -> viewModel.onGoogleDriveConsentLaunchFailed(error) }
     }
 
     val isCreatingNewReminder = selectedReminderId == NEW_REMINDER_ID
@@ -296,22 +291,23 @@ fun ReminderApp(
                         showingConfig = false
                     }
                     ConfigScreen(
-                        notificationWindow = state.notificationWindow,
+                        notificationWindow = state.notificationWindow.normalized(),
                         reminderDays = state.reminderDays,
                         notificationsEnabled = NotificationManagerCompat.from(context).areNotificationsEnabled(),
                         message = configMessage,
                         googleDriveMessage = googleDriveMessage,
+                        googleDriveBusy = googleDriveBusy,
                         isGoogleDriveBackupEnabled = BuildConfig.GOOGLE_DRIVE_BACKUP_ENABLED,
                         onBack = { showingConfig = false },
                         onStartHourChange = { startHour ->
                             viewModel.updateNotificationWindow(
                                 startHour = startHour,
-                                endHour = state.notificationWindow.endHour,
+                                endHour = state.notificationWindow.normalized().endHour,
                             )
                         },
                         onEndHourChange = { endHour ->
                             viewModel.updateNotificationWindow(
-                                startHour = state.notificationWindow.startHour,
+                                startHour = state.notificationWindow.normalized().startHour,
                                 endHour = endHour,
                             )
                         },
@@ -323,22 +319,10 @@ fun ReminderApp(
                             importLauncher.launch(arrayOf("text/plain"))
                         },
                         onGoogleDriveBackup = {
-                            val account = viewModel.getAuthorizedGoogleDriveAccount()
-                            if (account != null) {
-                                viewModel.performGoogleDriveAction(account, MainViewModel.GoogleDriveAction.BACKUP)
-                            } else {
-                                pendingGoogleDriveAction = MainViewModel.GoogleDriveAction.BACKUP
-                                googleDriveSignInLauncher.launch(viewModel.getGoogleDriveSignInIntent())
-                            }
+                            viewModel.startGoogleDriveAction(MainViewModel.GoogleDriveAction.BACKUP)
                         },
                         onGoogleDriveRestore = {
-                            val account = viewModel.getAuthorizedGoogleDriveAccount()
-                            if (account != null) {
-                                viewModel.performGoogleDriveAction(account, MainViewModel.GoogleDriveAction.RESTORE)
-                            } else {
-                                pendingGoogleDriveAction = MainViewModel.GoogleDriveAction.RESTORE
-                                googleDriveSignInLauncher.launch(viewModel.getGoogleDriveSignInIntent())
-                            }
+                            viewModel.startGoogleDriveAction(MainViewModel.GoogleDriveAction.RESTORE)
                         },
                         onPrivacyPolicy = {
                             showingConfig = false
@@ -548,6 +532,7 @@ private fun ConfigScreen(
     notificationsEnabled: Boolean,
     message: String?,
     googleDriveMessage: String?,
+    googleDriveBusy: Boolean,
     isGoogleDriveBackupEnabled: Boolean,
     onBack: () -> Unit,
     onStartHourChange: (Int) -> Unit,
@@ -596,10 +581,10 @@ private fun ConfigScreen(
                     label = stringResource(R.string.label_start_hour),
                     value = hourLabel(notificationWindow.startHour),
                     onDecrease = {
-                        onStartHourChange((notificationWindow.startHour - 1).coerceIn(0, notificationWindow.endHour - 1))
+                        onStartHourChange(notificationWindow.withStartHourStep(-1).startHour)
                     },
                     onIncrease = {
-                        onStartHourChange((notificationWindow.startHour + 1).coerceIn(0, notificationWindow.endHour - 1))
+                        onStartHourChange(notificationWindow.withStartHourStep(1).startHour)
                     },
                 )
                 HorizontalDivider(
@@ -610,10 +595,10 @@ private fun ConfigScreen(
                     label = stringResource(R.string.label_end_hour),
                     value = hourLabel(notificationWindow.endHour),
                     onDecrease = {
-                        onEndHourChange((notificationWindow.endHour - 1).coerceIn(notificationWindow.startHour + 1, 23))
+                        onEndHourChange(notificationWindow.withEndHourStep(-1).endHour)
                     },
                     onIncrease = {
-                        onEndHourChange((notificationWindow.endHour + 1).coerceIn(notificationWindow.startHour + 1, 23))
+                        onEndHourChange(notificationWindow.withEndHourStep(1).endHour)
                     },
                 )
             }
@@ -637,6 +622,7 @@ private fun ConfigScreen(
             item {
                 GoogleDriveBackupCard(
                     status = googleDriveMessage,
+                    busy = googleDriveBusy,
                     onBackup = onGoogleDriveBackup,
                     onRestore = onGoogleDriveRestore,
                 )
@@ -1238,6 +1224,7 @@ private fun BackupActionsCard(
 @Composable
 private fun GoogleDriveBackupCard(
     status: String?,
+    busy: Boolean,
     onBackup: () -> Unit,
     onRestore: () -> Unit,
 ) {
@@ -1260,6 +1247,7 @@ private fun GoogleDriveBackupCard(
         Spacer(modifier = Modifier.height(12.dp))
         Button(
             onClick = onBackup,
+            enabled = !busy,
             modifier = Modifier.fillMaxWidth(),
             colors = ButtonDefaults.buttonColors(
                 containerColor = MaterialTheme.colorScheme.primary,
@@ -1271,6 +1259,7 @@ private fun GoogleDriveBackupCard(
         Spacer(modifier = Modifier.height(8.dp))
         Button(
             onClick = onRestore,
+            enabled = !busy,
             modifier = Modifier.fillMaxWidth(),
             colors = ButtonDefaults.buttonColors(
                 containerColor = MaterialTheme.colorScheme.secondary,

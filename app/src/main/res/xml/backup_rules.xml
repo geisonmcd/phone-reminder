@@ -1,2 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<full-backup-content />
+<!-- Android Auto Backup (Android 11 and lower): keep only the reminders state. -->
+<full-backup-content>
+    <include domain="sharedpref" path="phone_reminder_prefs.xml" />
+</full-backup-content>

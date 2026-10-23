@@ -17,6 +17,12 @@
     <string name="message_google_drive_no_backup_found">No backup found in Google Drive.</string>
     <string name="message_google_drive_backup_failed">Google Drive backup failed: %1$s</string>
     <string name="message_google_drive_restore_failed">Google Drive restore failed: %1$s</string>
+    <string name="message_google_drive_working">Connecting to Google Drive…</string>
+    <string name="message_google_drive_app_not_registered">Google Drive is not available for this app build yet (Google status %1$d). Please try again after the next update.</string>
+    <string name="message_google_drive_api_disabled">Google Drive is temporarily unavailable for this app. Please try again later.</string>
+    <string name="message_google_drive_storage_full">Your Google Drive storage is full.</string>
+    <string name="message_google_drive_network">Could not reach Google Drive. Check your connection and try again.</string>
+    <string name="message_google_drive_status_code">Google status code %1$d</string>
     <plurals name="message_exported_reminders">
         <item quantity="one">Exported 1 reminder.</item>
         <item quantity="other">Exported %1$d reminders.</item>

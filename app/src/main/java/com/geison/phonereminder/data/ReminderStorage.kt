@@ -27,7 +27,7 @@ object ReminderStorage {
         val raw = prefs.getString(STATE_KEY, null) ?: return AppState()
         return runCatching {
             val migrated = migrateLegacyState(json.parseToJsonElement(raw))
-            json.decodeFromJsonElement<AppState>(migrated)
+            json.decodeFromJsonElement<AppState>(migrated).normalized()
         }.getOrElse { error ->
             Diagnostics.recordNonFatal(
                 area = "storage_load_failed",

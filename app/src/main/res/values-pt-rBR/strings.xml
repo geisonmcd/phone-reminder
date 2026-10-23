@@ -17,6 +17,12 @@
     <string name="message_google_drive_no_backup_found">Nenhum backup encontrado no Google Drive.</string>
     <string name="message_google_drive_backup_failed">Falha no backup do Google Drive: %1$s</string>
     <string name="message_google_drive_restore_failed">Falha na restauração do Google Drive: %1$s</string>
+    <string name="message_google_drive_working">Conectando ao Google Drive…</string>
+    <string name="message_google_drive_app_not_registered">O Google Drive ainda não está disponível para esta versão do app (status do Google %1$d). Tente novamente após a próxima atualização.</string>
+    <string name="message_google_drive_api_disabled">O Google Drive está temporariamente indisponível para este app. Tente novamente mais tarde.</string>
+    <string name="message_google_drive_storage_full">Seu armazenamento do Google Drive está cheio.</string>
+    <string name="message_google_drive_network">Não foi possível acessar o Google Drive. Verifique sua conexão e tente novamente.</string>
+    <string name="message_google_drive_status_code">código de status do Google %1$d</string>
     <plurals name="message_exported_reminders">
         <item quantity="one">%1$d lembrete exportado.</item>
         <item quantity="many">%1$d lembretes exportados.</item>

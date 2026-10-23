@@ -1,2 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
-<data-extraction-rules />
+<!-- Android Auto Backup / device transfer (Android 12+): keep only the reminders state. -->
+<data-extraction-rules>
+    <cloud-backup>
+        <include domain="sharedpref" path="phone_reminder_prefs.xml" />
+    </cloud-backup>
+    <device-transfer>
+        <include domain="sharedpref" path="phone_reminder_prefs.xml" />
+    </device-transfer>
+</data-extraction-rules>

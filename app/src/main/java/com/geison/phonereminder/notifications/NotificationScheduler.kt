@@ -183,7 +183,7 @@ object NotificationScheduler {
         day: LocalDate,
     ): List<ReminderOccurrence> {
         val settings = reminder.schedule
-        val window = state.notificationWindow
+        val window = state.notificationWindow.normalized()
         val start = LocalDateTime.of(day, LocalTime.of(window.startHour, 0))
         val end = LocalDateTime.of(day, LocalTime.of(window.endHour, 0))
         if (!start.isBefore(end)) {
