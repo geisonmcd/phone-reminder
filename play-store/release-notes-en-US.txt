@@ -1,5 +1,5 @@
-Fixes Google Drive backup so sign-in and release builds sync reminders reliably.
+Fixes Google Drive backup and a settings crash.
 
-- Requires Drive permission before reusing a Google account
-- Recovers expired Drive authorization
-- Keeps Drive API classes intact in release builds
+- Google Drive backup now uses Google's new authorization flow
+- Clearer error messages when backup or restore fails
+- Fixed a crash when changing reminder time settings
