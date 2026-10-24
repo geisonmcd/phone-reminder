@@ -15,9 +15,8 @@
     <string name="message_google_drive_sign_in_failed_with_code">Google sign-in failed. Status code: %1$d.</string>
     <string name="message_google_drive_auth_required">Google Drive permission is required. Complete the prompt and try again.</string>
     <string name="message_google_drive_no_backup_found">No backup found in Google Drive.</string>
-    <string name="message_google_drive_backup_failed">Google Drive backup failed: %1$s</string>
-    <string name="message_google_drive_restore_failed">Google Drive restore failed: %1$s</string>
-    <string name="message_google_drive_working">Connecting to Google Drive…</string>
+    <string name="message_google_drive_sync_failed">Google Drive sync failed: %1$s</string>
+    <string name="message_google_drive_check_failed">Could not check Google Drive: %1$s</string>
     <string name="message_google_drive_app_not_registered">Google Drive is not available for this app build yet (Google status %1$d). Please try again after the next update.</string>
     <string name="message_google_drive_api_disabled">Google Drive is temporarily unavailable for this app. Please try again later.</string>
     <string name="message_google_drive_storage_full">Your Google Drive storage is full.</string>
@@ -35,9 +34,33 @@
         <item quantity="one">Merged 1 reminder.</item>
         <item quantity="other">Merged %1$d reminders.</item>
     </plurals>
-    <plurals name="message_google_drive_backup_status">
-        <item quantity="one">1 reminder in Drive - Last synced %2$s</item>
-        <item quantity="other">%1$d reminders in Drive - Last synced %2$s</item>
+    <plurals name="drive_sync_status_differences">
+        <item quantity="one">%1$d difference: %2$s</item>
+        <item quantity="other">%1$d differences: %2$s</item>
+    </plurals>
+    <plurals name="drive_sync_only_on_phone">
+        <item quantity="one">%1$d only on phone</item>
+        <item quantity="other">%1$d only on phone</item>
+    </plurals>
+    <plurals name="drive_sync_only_on_drive">
+        <item quantity="one">%1$d only on Drive</item>
+        <item quantity="other">%1$d only on Drive</item>
+    </plurals>
+    <plurals name="drive_sync_edited_on_both">
+        <item quantity="one">%1$d edited on both</item>
+        <item quantity="other">%1$d edited on both</item>
+    </plurals>
+    <plurals name="drive_sync_deleted_on_drive">
+        <item quantity="one">%1$d deleted on Drive</item>
+        <item quantity="other">%1$d deleted on Drive</item>
+    </plurals>
+    <plurals name="drive_sync_deleted_on_phone">
+        <item quantity="one">%1$d deleted on phone</item>
+        <item quantity="other">%1$d deleted on phone</item>
+    </plurals>
+    <plurals name="drive_sync_status_no_remote_file">
+        <item quantity="one">No copy on Google Drive yet. Sync now uploads %1$d reminder.</item>
+        <item quantity="other">No copy on Google Drive yet. Sync now uploads %1$d reminders.</item>
     </plurals>
 
     <string name="file_name_export">phone-reminder-export.txt</string>
@@ -62,8 +85,16 @@
     <string name="action_open_privacy_policy">Open privacy policy</string>
     <string name="action_merge_reminders">Merge reminders</string>
     <string name="action_replace_reminders">Replace reminders</string>
-    <string name="action_google_drive_backup">Back up to Google Drive</string>
-    <string name="action_google_drive_import">Import from Google Drive</string>
+    <string name="drive_sync_title">Google Drive</string>
+    <string name="drive_sync_last_sync">Last sync: %1$s</string>
+    <string name="drive_sync_never_synced">Never synced with Google Drive.</string>
+    <string name="drive_sync_status_not_connected">Not connected. Connect to back up and sync your reminders.</string>
+    <string name="drive_sync_status_checking">Checking Google Drive…</string>
+    <string name="drive_sync_status_syncing">Syncing…</string>
+    <string name="drive_sync_status_synced">Synced</string>
+    <string name="drive_sync_settings_differ">settings differ</string>
+    <string name="action_drive_connect">Connect Google Drive</string>
+    <string name="action_drive_sync_now">Sync now</string>
     <string name="notification_action_less_often">Less often</string>
     <string name="notification_action_more_often">More often</string>
     <string name="notification_action_schedule_less">- %1$s</string>
@@ -100,8 +131,6 @@
     <string name="config_export_body">Save to a text file.</string>
     <string name="config_import_title">Import reminders</string>
     <string name="config_import_body">Merge or replace from a text file.</string>
-    <string name="config_google_drive_title">Google Drive</string>
-    <string name="config_google_drive_body">Back up reminders to Drive or import the latest Drive backup.</string>
     <string name="config_privacy_title">Privacy policy</string>
     <string name="config_privacy_body">Read how your reminder data is handled.</string>
 
@@ -113,7 +142,7 @@
     <string name="privacy_sharing_title">Data sharing</string>
     <string name="privacy_sharing_body">The app does not send reminder content to our servers. Crash reports may send technical diagnostics to Firebase Crashlytics.</string>
     <string name="privacy_backups_title">Backups</string>
-    <string name="privacy_backups_body">Exports are saved only when you choose to create a backup. Google Drive backups are stored in your own Google Drive and are only accessible by this app.</string>
+    <string name="privacy_backups_body">Exports are saved only when you choose to create one. Google Drive backup and sync stores a copy of your reminders in your own Google Drive, only accessible by this app. While connected, the app reads that copy when opened to show differences; it only writes to Drive when you tap Sync now.</string>
     <string name="privacy_contact_title">Contact</string>
     <string name="privacy_contact_body">Publisher: Geison Macedo da Silva.</string>
 

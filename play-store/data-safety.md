@@ -16,7 +16,7 @@ Expected Play Console answers based on the current app code and Firebase Crashly
 
 Collection:
 - Reminder content and schedule data are not sent off device unless the user turns on the optional Google Drive backup.
-- Google Drive backup (optional, user-initiated): the app uploads a backup file (`Smart Random Reminder Backup.txt`) with reminder text and settings directly from the device to the user's own Google Drive via HTTPS, using the `drive.file` scope (only files the app creates). The developer has no server and never receives this data, but Play treats any transmission off device as collection, so declare it: Other user-generated content, collected, optional, purpose App functionality, encrypted in transit, user can delete it (delete the file in Google Drive or revoke the app's access in their Google Account). The app does not read or store the Google account email or profile.
+- Google Drive backup and sync (optional, user-initiated): the app uploads a sync file (`Smart Random Reminder Backup.txt`) with reminder text and settings directly from the device to the user's own Google Drive via HTTPS, using the `drive.file` scope (only files the app creates). The developer has no server and never receives this data, but Play treats any transmission off device as collection, so declare it: Other user-generated content, collected, optional, purpose App functionality, encrypted in transit, user can delete it (delete the file in Google Drive or revoke the app's access in their Google Account). The app does not read or store the Google account email or profile.
 - Firebase Crashlytics collects crash reports, stack traces, relevant app state, device metadata, app version, and a Crashlytics installation UUID for stability monitoring.
 - Developer-defined crash report keys/logs include technical metadata only, such as reminder count, scheduler state, notification permission state, import/export failure state, and app lifecycle breadcrumbs. Do not log reminder text, imported file contents, exported file contents, account identifiers, advertising identifiers, or precise location.
 
@@ -28,7 +28,7 @@ Processing:
 - Reminder text and schedule settings are stored locally on device.
 - Export files are created only when the user chooses to export reminders.
 - Import reads only the file selected by the user.
-- Google Drive backup and restore run only when the user requests them; restore downloads only the app's own backup file.
+- Google Drive backup and sync is optional. Once the user has connected it, the app downloads its own sync file (read-only) when opened or brought to the foreground to show differences; it writes to Drive only when the user taps "Sync now". It never reads any other Drive file.
 
 Permissions used:
 - `POST_NOTIFICATIONS`

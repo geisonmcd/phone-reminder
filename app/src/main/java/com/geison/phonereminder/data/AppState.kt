@@ -88,16 +88,50 @@ data class ReminderItem(
     val text: String,
     val createdAtEpochMillis: Long = System.currentTimeMillis(),
     val schedule: ScheduleSettings = ScheduleSettings(),
+    /**
+     * Last time the text or schedule changed. Stored data from before Drive sync has no value,
+     * so it defaults to [createdAtEpochMillis] (see also ReminderStorage migration).
+     */
+    val updatedAtEpochMillis: Long = createdAtEpochMillis,
+) {
+    /** Returns this reminder marked as edited at [nowMillis] (never moving the clock backwards). */
+    fun touched(nowMillis: Long): ReminderItem {
+        return copy(updatedAtEpochMillis = maxOf(nowMillis, updatedAtEpochMillis))
+    }
+}
+
+/** Records that a reminder was deleted so the deletion can propagate through Drive sync. */
+@Serializable
+data class ReminderTombstone(
+    val id: String,
+    val deletedAtEpochMillis: Long,
 )
+
+const val TOMBSTONE_RETENTION_MILLIS: Long = 90L * 24 * 60 * 60 * 1000
 
 @Serializable
 data class AppState(
     val reminders: List<ReminderItem> = emptyList(),
     val notificationWindow: NotificationWindowSettings = NotificationWindowSettings(),
     val reminderDays: Set<DayOfWeek> = DEFAULT_REMINDER_DAYS,
+    /** Last change to the global settings (notification window + reminder days); 0 = never edited. */
+    val settingsUpdatedAtEpochMillis: Long = 0L,
+    /** Deleted reminder ids, kept for [TOMBSTONE_RETENTION_MILLIS] so Drive sync can propagate deletes. */
+    val deletedReminders: List<ReminderTombstone> = emptyList(),
 ) {
     fun normalized(): AppState {
         val window = notificationWindow.normalized()
         return if (window == notificationWindow) this else copy(notificationWindow = window)
+    }
+
+    /** Drops tombstones older than the retention window and ones for reminders that exist again. */
+    fun prunedTombstones(nowMillis: Long): AppState {
+        val liveIds = reminders.mapTo(HashSet()) { it.id }
+        val cutoff = nowMillis - TOMBSTONE_RETENTION_MILLIS
+        val kept = deletedReminders
+            .filter { it.id !in liveIds && it.deletedAtEpochMillis >= cutoff }
+            .groupBy { it.id }
+            .map { (_, tombstones) -> tombstones.maxBy { it.deletedAtEpochMillis } }
+        return if (kept == deletedReminders) this else copy(deletedReminders = kept)
     }
 }

@@ -15,9 +15,8 @@
     <string name="message_google_drive_sign_in_failed_with_code">Falha no login do Google. Código de status: %1$d.</string>
     <string name="message_google_drive_auth_required">É necessária permissão do Google Drive. Conclua o aviso e tente novamente.</string>
     <string name="message_google_drive_no_backup_found">Nenhum backup encontrado no Google Drive.</string>
-    <string name="message_google_drive_backup_failed">Falha no backup do Google Drive: %1$s</string>
-    <string name="message_google_drive_restore_failed">Falha na restauração do Google Drive: %1$s</string>
-    <string name="message_google_drive_working">Conectando ao Google Drive…</string>
+    <string name="message_google_drive_sync_failed">Falha na sincronização com o Google Drive: %1$s</string>
+    <string name="message_google_drive_check_failed">Não foi possível verificar o Google Drive: %1$s</string>
     <string name="message_google_drive_app_not_registered">O Google Drive ainda não está disponível para esta versão do app (status do Google %1$d). Tente novamente após a próxima atualização.</string>
     <string name="message_google_drive_api_disabled">O Google Drive está temporariamente indisponível para este app. Tente novamente mais tarde.</string>
     <string name="message_google_drive_storage_full">Seu armazenamento do Google Drive está cheio.</string>
@@ -38,10 +37,40 @@
         <item quantity="many">%1$d lembretes mesclados.</item>
         <item quantity="other">%1$d lembretes mesclados.</item>
     </plurals>
-    <plurals name="message_google_drive_backup_status">
-        <item quantity="one">%1$d lembrete no Drive - Última sincronização %2$s</item>
-        <item quantity="many">%1$d lembretes no Drive - Última sincronização %2$s</item>
-        <item quantity="other">%1$d lembretes no Drive - Última sincronização %2$s</item>
+    <plurals name="drive_sync_status_differences">
+        <item quantity="one">%1$d diferença: %2$s</item>
+        <item quantity="many">%1$d diferenças: %2$s</item>
+        <item quantity="other">%1$d diferenças: %2$s</item>
+    </plurals>
+    <plurals name="drive_sync_only_on_phone">
+        <item quantity="one">%1$d só no celular</item>
+        <item quantity="many">%1$d só no celular</item>
+        <item quantity="other">%1$d só no celular</item>
+    </plurals>
+    <plurals name="drive_sync_only_on_drive">
+        <item quantity="one">%1$d só no Drive</item>
+        <item quantity="many">%1$d só no Drive</item>
+        <item quantity="other">%1$d só no Drive</item>
+    </plurals>
+    <plurals name="drive_sync_edited_on_both">
+        <item quantity="one">%1$d editado nos dois</item>
+        <item quantity="many">%1$d editados nos dois</item>
+        <item quantity="other">%1$d editados nos dois</item>
+    </plurals>
+    <plurals name="drive_sync_deleted_on_drive">
+        <item quantity="one">%1$d excluído no Drive</item>
+        <item quantity="many">%1$d excluídos no Drive</item>
+        <item quantity="other">%1$d excluídos no Drive</item>
+    </plurals>
+    <plurals name="drive_sync_deleted_on_phone">
+        <item quantity="one">%1$d excluído no celular</item>
+        <item quantity="many">%1$d excluídos no celular</item>
+        <item quantity="other">%1$d excluídos no celular</item>
+    </plurals>
+    <plurals name="drive_sync_status_no_remote_file">
+        <item quantity="one">Ainda não há cópia no Google Drive. Sincronizar agora envia %1$d lembrete.</item>
+        <item quantity="many">Ainda não há cópia no Google Drive. Sincronizar agora envia %1$d lembretes.</item>
+        <item quantity="other">Ainda não há cópia no Google Drive. Sincronizar agora envia %1$d lembretes.</item>
     </plurals>
 
     <string name="file_name_export">phone-reminder-export.txt</string>
@@ -66,8 +95,16 @@
     <string name="action_open_privacy_policy">Abrir política de privacidade</string>
     <string name="action_merge_reminders">Mesclar lembretes</string>
     <string name="action_replace_reminders">Substituir lembretes</string>
-    <string name="action_google_drive_backup">Fazer backup no Google Drive</string>
-    <string name="action_google_drive_import">Importar do Google Drive</string>
+    <string name="drive_sync_title">Google Drive</string>
+    <string name="drive_sync_last_sync">Última sincronização: %1$s</string>
+    <string name="drive_sync_never_synced">Nunca sincronizado com o Google Drive.</string>
+    <string name="drive_sync_status_not_connected">Não conectado. Conecte para fazer backup e sincronizar seus lembretes.</string>
+    <string name="drive_sync_status_checking">Verificando o Google Drive…</string>
+    <string name="drive_sync_status_syncing">Sincronizando…</string>
+    <string name="drive_sync_status_synced">Sincronizado</string>
+    <string name="drive_sync_settings_differ">configurações diferentes</string>
+    <string name="action_drive_connect">Conectar Google Drive</string>
+    <string name="action_drive_sync_now">Sincronizar agora</string>
     <string name="notification_action_less_often">Menos vezes</string>
     <string name="notification_action_more_often">Mais vezes</string>
     <string name="notification_action_schedule_less">- %1$s</string>
@@ -104,8 +141,6 @@
     <string name="config_export_body">Salve em um arquivo de texto.</string>
     <string name="config_import_title">Importar lembretes</string>
     <string name="config_import_body">Mescle ou substitua a partir de um arquivo de texto.</string>
-    <string name="config_google_drive_title">Google Drive</string>
-    <string name="config_google_drive_body">Faça backup dos lembretes no Drive ou importe o backup mais recente.</string>
     <string name="config_privacy_title">Política de privacidade</string>
     <string name="config_privacy_body">Leia como seus dados de lembretes são tratados.</string>
 
@@ -117,7 +152,7 @@
     <string name="privacy_sharing_title">Compartilhamento de dados</string>
     <string name="privacy_sharing_body">O app não envia conteúdo dos lembretes para nossos servidores. Relatórios de falhas podem enviar diagnósticos técnicos ao Firebase Crashlytics.</string>
     <string name="privacy_backups_title">Backups</string>
-    <string name="privacy_backups_body">As exportações são salvas apenas quando você escolhe criar um backup. Backups no Google Drive são armazenados no seu próprio Google Drive e só são acessíveis por este app.</string>
+    <string name="privacy_backups_body">As exportações são salvas apenas quando você escolhe criar uma. O backup e sincronização do Google Drive guarda uma cópia dos seus lembretes no seu próprio Google Drive, acessível somente por este app. Enquanto conectado, o app lê essa cópia ao ser aberto para mostrar diferenças; ele só grava no Drive quando você toca em Sincronizar agora.</string>
     <string name="privacy_contact_title">Contato</string>
     <string name="privacy_contact_body">Publicador: Geison Macedo da Silva.</string>
 

@@ -82,16 +82,16 @@
       <p>Your reminder data stays on your device until you edit or delete it in the app, uninstall the app, or remove any exported backup files you created. Because the app does not keep your reminder data on external servers, deletion is controlled by you on your device and in any files you choose to export.</p>
 
       <h2>Permissions</h2>
-      <p>The app requests notification permission to show reminders, boot permission to restore reminder scheduling after your device restarts or the app is updated, and internet access so crash reports can be sent to Firebase Crashlytics and, if you turn it on, so backups can be saved to your Google Drive.</p>
+      <p>The app requests notification permission to show reminders, boot permission to restore reminder scheduling after your device restarts or the app is updated, and internet access so crash reports can be sent to Firebase Crashlytics and, if you turn it on, so your reminders can be backed up to and synced with your Google Drive.</p>
 
       <h2>Security</h2>
-      <p>The app stores reminder data locally on your Android device and does not transmit reminder text to our servers; it is sent only to your own Google Drive if you turn on Google Drive backup. Exported files are created only when you request them and are stored in the location you choose.</p>
+      <p>The app stores reminder data locally on your Android device and does not transmit reminder text to our servers; it is sent only to your own Google Drive if you turn on Google Drive backup and sync. Exported files are created only when you request them and are stored in the location you choose.</p>
 
       <h2>Exports and backups</h2>
-      <p>If you choose to export reminders, the app writes a text file to the location you select. That file is controlled by you and is not uploaded by the app. Google Drive backup, described below, happens only if you turn it on.</p>
+      <p>If you choose to export reminders, the app writes a text file to the location you select. That file is controlled by you and is not uploaded by the app. Google Drive backup and sync, described below, happens only if you turn it on.</p>
 
-      <h2>Optional Google Drive backup</h2>
-      <p>If you choose to turn on Google Drive backup, the app asks Google for permission using the <code>drive.file</code> scope. This scope lets the app access only the files it creates itself; it cannot see or change any other files in your Google Drive. The backup file containing your reminders and settings is stored in your own Google Drive account, is not sent to our servers, and can be deleted by you at any time from Google Drive. You can stop using the backup or revoke the app's access in your Google Account settings whenever you want.</p>
+      <h2>Optional Google Drive backup and sync</h2>
+      <p>If you choose to turn on Google Drive backup and sync, the app asks Google for permission using the <code>drive.file</code> scope. This scope lets the app access only the files it creates itself; it cannot see or change any other files in your Google Drive. The backup file containing your reminders and settings is stored in your own Google Drive account, is not sent to our servers, and can be deleted by you at any time from Google Drive. Once connected, the app reads that file when you open it to show what differs between your phone and Drive; it changes the file only when you tap Sync now. You can stop using the backup or revoke the app's access in your Google Account settings whenever you want.</p>
 
       <h2>Contact</h2>
       <p>Publisher: Geison Macedo da Silva<br>Email: geisonmcd@gmail.com</p>

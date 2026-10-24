@@ -7,7 +7,10 @@ import kotlinx.coroutines.flow.asStateFlow
 import java.time.DayOfWeek
 import java.util.UUID
 
-class ReminderRepository(private val context: Context) {
+class ReminderRepository(
+    private val context: Context,
+    private val clock: () -> Long = System::currentTimeMillis,
+) {
     private val mutableState = MutableStateFlow(ReminderStorage.load(context))
     val state: StateFlow<AppState> = mutableState.asStateFlow()
 
@@ -15,7 +18,7 @@ class ReminderRepository(private val context: Context) {
         return addReminder(
             text = text,
             schedule = ScheduleSettings(),
-            createdAtEpochMillis = System.currentTimeMillis(),
+            createdAtEpochMillis = clock(),
         )
     }
 
@@ -37,6 +40,7 @@ class ReminderRepository(private val context: Context) {
                     text = trimmed,
                     createdAtEpochMillis = createdAtEpochMillis,
                     schedule = schedule,
+                    updatedAtEpochMillis = maxOf(createdAtEpochMillis, clock()),
                 ),
             )
         }
@@ -49,15 +53,18 @@ class ReminderRepository(private val context: Context) {
         }
     }
 
+    /** Applies [transform] and bumps updatedAt when the reminder content actually changed. */
     fun updateReminder(
         id: String,
         transform: (ReminderItem) -> ReminderItem,
     ) {
+        val now = clock()
         updateState {
             copy(
                 reminders = reminders.map { reminder ->
                     if (reminder.id == id) {
-                        transform(reminder)
+                        val updated = transform(reminder)
+                        if (updated == reminder) reminder else updated.touched(now)
                     } else {
                         reminder
                     }
@@ -76,10 +83,29 @@ class ReminderRepository(private val context: Context) {
         }
     }
 
+    /**
+     * Replaces everything from a .txt import. Reminders that disappear get tombstones so Drive sync
+     * deletes them there too, and imported settings count as a fresh settings edit.
+     */
     fun replaceState(state: AppState) {
-        val normalized = state.normalized()
+        updateState {
+            state.copy(
+                settingsUpdatedAtEpochMillis = this.settingsUpdatedAtEpochMillis,
+                deletedReminders = this.deletedReminders,
+            ).normalized()
+        }
+    }
+
+    /** Stores the result of a Drive sync merge as-is (its tombstones and timestamps are authoritative). */
+    fun replaceWithSyncedState(state: AppState) {
+        val normalized = state.normalized().prunedTombstones(clock())
         mutableState.value = normalized
         ReminderStorage.save(context, normalized)
+    }
+
+    /** Re-reads storage, e.g. after a notification action changed a reminder in the background. */
+    fun reloadFromStorage() {
+        mutableState.value = ReminderStorage.load(context)
     }
 
     fun updateNotificationWindow(
@@ -103,8 +129,35 @@ class ReminderRepository(private val context: Context) {
     }
 
     private fun updateState(transform: AppState.() -> AppState) {
-        val updated = mutableState.value.transform()
+        val current = mutableState.value
+        val updated = LocalChangeTracker.apply(current, current.transform(), clock())
+        if (updated == current) {
+            return
+        }
         mutableState.value = updated
         ReminderStorage.save(context, updated)
+    }
+}
+
+/** Bookkeeping for Drive sync on every local edit: tombstones for deletes, settings timestamp. */
+object LocalChangeTracker {
+    fun apply(before: AppState, after: AppState, nowMillis: Long): AppState {
+        val remainingIds = after.reminders.mapTo(HashSet()) { it.id }
+        val newTombstones = before.reminders
+            .filter { it.id !in remainingIds }
+            .map { ReminderTombstone(id = it.id, deletedAtEpochMillis = nowMillis) }
+        val settingsChanged = before.notificationWindow != after.notificationWindow ||
+            before.reminderDays != after.reminderDays
+        val withSettings = if (settingsChanged && after.settingsUpdatedAtEpochMillis == before.settingsUpdatedAtEpochMillis) {
+            after.copy(settingsUpdatedAtEpochMillis = maxOf(nowMillis, before.settingsUpdatedAtEpochMillis + 1))
+        } else {
+            after
+        }
+        val withTombstones = if (newTombstones.isEmpty()) {
+            withSettings
+        } else {
+            withSettings.copy(deletedReminders = withSettings.deletedReminders + newTombstones)
+        }
+        return withTombstones.prunedTombstones(nowMillis)
     }
 }

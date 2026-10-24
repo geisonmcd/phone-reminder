@@ -71,6 +71,17 @@ class GoogleDriveBackupManager(
         driveClient.download(token, file.id).toString(Charsets.UTF_8)
     }
 
+    /** Read-only: downloads the sync file, or returns null when Drive has no file yet. */
+    suspend fun fetchSyncFile(accessToken: String): RemoteSyncFile? = withTokenRefresh(accessToken) { token ->
+        val file = driveClient.findBackupFile(token, BACKUP_FILE_NAME) ?: return@withTokenRefresh null
+        RemoteSyncFile(
+            content = driveClient.download(token, file.id).toString(Charsets.UTF_8),
+            modifiedTimeEpochMillis = file.modifiedTime?.let { raw ->
+                runCatching { java.time.Instant.parse(raw).toEpochMilli() }.getOrNull()
+            },
+        )
+    }
+
     private suspend fun <T> withTokenRefresh(accessToken: String, block: (String) -> T): T {
         return withContext(Dispatchers.IO) {
             DriveTokenRetry.run(
@@ -131,6 +142,11 @@ object DriveTokenRetry {
         }
     }
 }
+
+data class RemoteSyncFile(
+    val content: String,
+    val modifiedTimeEpochMillis: Long?,
+)
 
 class GoogleDriveNoBackupException : Exception("No backup found in Google Drive.")
 

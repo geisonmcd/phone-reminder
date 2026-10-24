@@ -68,6 +68,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -75,7 +76,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.core.app.NotificationManagerCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.geison.phonereminder.BuildConfig
+import com.geison.phonereminder.DriveSyncStatus
+import com.geison.phonereminder.DriveSyncUiState
 import com.geison.phonereminder.ImportPreviewResult
 import com.geison.phonereminder.MainViewModel
 import com.geison.phonereminder.R
@@ -145,10 +147,8 @@ fun ReminderApp(
     var showingPrivacyPolicy by rememberSaveable { mutableStateOf(false) }
     var configMessage by rememberSaveable { mutableStateOf<String?>(null) }
     var pendingImport by remember { mutableStateOf<ImportPreviewResult.Ready?>(null) }
-    val googleDriveMessage by viewModel.googleDriveMessage.collectAsStateWithLifecycle()
-    val googleDriveRestorePreview by viewModel.googleDriveRestorePreview.collectAsStateWithLifecycle()
     val googleDriveConsentRequest by viewModel.googleDriveConsentRequest.collectAsStateWithLifecycle()
-    val googleDriveBusy by viewModel.googleDriveBusy.collectAsStateWithLifecycle()
+    val driveSyncState by viewModel.driveSyncUiState.collectAsStateWithLifecycle()
     val context = LocalContext.current
 
     val exportLauncher = rememberLauncherForActivityResult(
@@ -295,9 +295,6 @@ fun ReminderApp(
                         reminderDays = state.reminderDays,
                         notificationsEnabled = NotificationManagerCompat.from(context).areNotificationsEnabled(),
                         message = configMessage,
-                        googleDriveMessage = googleDriveMessage,
-                        googleDriveBusy = googleDriveBusy,
-                        isGoogleDriveBackupEnabled = BuildConfig.GOOGLE_DRIVE_BACKUP_ENABLED,
                         onBack = { showingConfig = false },
                         onStartHourChange = { startHour ->
                             viewModel.updateNotificationWindow(
@@ -317,12 +314,6 @@ fun ReminderApp(
                         },
                         onImport = {
                             importLauncher.launch(arrayOf("text/plain"))
-                        },
-                        onGoogleDriveBackup = {
-                            viewModel.startGoogleDriveAction(MainViewModel.GoogleDriveAction.BACKUP)
-                        },
-                        onGoogleDriveRestore = {
-                            viewModel.startGoogleDriveAction(MainViewModel.GoogleDriveAction.RESTORE)
                         },
                         onPrivacyPolicy = {
                             showingConfig = false
@@ -350,8 +341,6 @@ fun ReminderApp(
                         onFilterChange = { reminderFilter = it },
                         onConfig = {
                             configMessage = null
-                            viewModel.clearGoogleDriveMessage()
-                            viewModel.clearGoogleDriveRestorePreview()
                             showingConfig = true
                         },
                         onNewReminder = {
@@ -359,6 +348,9 @@ fun ReminderApp(
                             selectedReminderId = NEW_REMINDER_ID
                         },
                         onEdit = { reminderId -> selectedReminderId = reminderId },
+                        driveSyncState = driveSyncState,
+                        onDriveConnect = viewModel::connectGoogleDrive,
+                        onDriveSyncNow = viewModel::syncGoogleDriveNow,
                     )
                 }
             }
@@ -403,47 +395,6 @@ fun ReminderApp(
                     },
                 )
             }
-
-            googleDriveRestorePreview?.let { preview ->
-                AlertDialog(
-                    onDismissRequest = { viewModel.clearGoogleDriveRestorePreview() },
-                    title = { Text(stringResource(R.string.dialog_import_replace_title)) },
-                    text = {
-                        Text(
-                            stringResource(
-                                R.string.dialog_import_replace_body,
-                                preview.currentReminderCount,
-                                preview.importedState.reminders.size,
-                            ),
-                        )
-                    },
-                    confirmButton = {
-                        Column(horizontalAlignment = Alignment.End) {
-                            TextButton(
-                                onClick = {
-                                    viewModel.mergeGoogleDriveReminders(preview.importedState)
-                                    viewModel.clearGoogleDriveRestorePreview()
-                                },
-                            ) {
-                                Text(stringResource(R.string.action_merge_reminders))
-                            }
-                            TextButton(
-                                onClick = {
-                                    viewModel.importGoogleDriveReminders(preview.importedState)
-                                    viewModel.clearGoogleDriveRestorePreview()
-                                },
-                            ) {
-                                Text(stringResource(R.string.action_replace_reminders))
-                            }
-                        }
-                    },
-                    dismissButton = {
-                        TextButton(onClick = { viewModel.clearGoogleDriveRestorePreview() }) {
-                            Text(stringResource(R.string.action_cancel))
-                        }
-                    },
-                )
-            }
         }
     }
 }
@@ -457,6 +408,9 @@ private fun HomeScreen(
     onConfig: () -> Unit,
     onNewReminder: () -> Unit,
     onEdit: (String) -> Unit,
+    driveSyncState: DriveSyncUiState,
+    onDriveConnect: () -> Unit,
+    onDriveSyncNow: () -> Unit,
 ) {
     val filteredReminders = reminders
         .sortedByDescending { it.createdAtEpochMillis }
@@ -488,6 +442,16 @@ private fun HomeScreen(
             }
         },
     ) {
+        if (driveSyncState.isEnabled) {
+            item {
+                DriveSyncCard(
+                    state = driveSyncState,
+                    onConnect = onDriveConnect,
+                    onSyncNow = onDriveSyncNow,
+                )
+            }
+        }
+
         item {
             ReminderListCard(
                 reminderCount = reminderCount,
@@ -531,17 +495,12 @@ private fun ConfigScreen(
     reminderDays: Set<DayOfWeek>,
     notificationsEnabled: Boolean,
     message: String?,
-    googleDriveMessage: String?,
-    googleDriveBusy: Boolean,
-    isGoogleDriveBackupEnabled: Boolean,
     onBack: () -> Unit,
     onStartHourChange: (Int) -> Unit,
     onEndHourChange: (Int) -> Unit,
     onReminderDayChange: (DayOfWeek, Boolean) -> Unit,
     onExport: () -> Unit,
     onImport: () -> Unit,
-    onGoogleDriveBackup: () -> Unit,
-    onGoogleDriveRestore: () -> Unit,
     onPrivacyPolicy: () -> Unit,
     onOpenNotificationSettings: () -> Unit,
 ) {
@@ -616,17 +575,6 @@ private fun ConfigScreen(
                 onExport = onExport,
                 onImport = onImport,
             )
-        }
-
-        if (isGoogleDriveBackupEnabled) {
-            item {
-                GoogleDriveBackupCard(
-                    status = googleDriveMessage,
-                    busy = googleDriveBusy,
-                    onBackup = onGoogleDriveBackup,
-                    onRestore = onGoogleDriveRestore,
-                )
-            }
         }
 
         item {
@@ -1222,51 +1170,102 @@ private fun BackupActionsCard(
 }
 
 @Composable
-private fun GoogleDriveBackupCard(
-    status: String?,
-    busy: Boolean,
-    onBackup: () -> Unit,
-    onRestore: () -> Unit,
+private fun DriveSyncCard(
+    state: DriveSyncUiState,
+    onConnect: () -> Unit,
+    onSyncNow: () -> Unit,
 ) {
+    val status = state.status
+    val busy = status == DriveSyncStatus.Checking || status == DriveSyncStatus.Syncing
     AppCard(containerColor = PrimaryCardColor) {
         Text(
-            text = stringResource(R.string.config_google_drive_title),
+            text = stringResource(R.string.drive_sync_title),
             style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.SemiBold,
         )
         Spacer(modifier = Modifier.height(8.dp))
         Text(
-            text = stringResource(R.string.config_google_drive_body),
+            text = state.lastSyncAtEpochMillis?.let { lastSync ->
+                stringResource(R.string.drive_sync_last_sync, formatCreatedAt(lastSync))
+            } ?: stringResource(R.string.drive_sync_never_synced),
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
-        if (!status.isNullOrBlank()) {
-            Spacer(modifier = Modifier.height(12.dp))
-            InfoPill(text = status)
-        }
         Spacer(modifier = Modifier.height(12.dp))
-        Button(
-            onClick = onBackup,
-            enabled = !busy,
-            modifier = Modifier.fillMaxWidth(),
-            colors = ButtonDefaults.buttonColors(
-                containerColor = MaterialTheme.colorScheme.primary,
-                contentColor = MaterialTheme.colorScheme.onPrimary,
-            ),
-        ) {
-            Text(stringResource(R.string.action_google_drive_backup))
+        InfoPill(text = driveSyncStatusText(status))
+        Spacer(modifier = Modifier.height(12.dp))
+        if (status == DriveSyncStatus.NotConnected) {
+            Button(
+                onClick = onConnect,
+                modifier = Modifier.fillMaxWidth(),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    contentColor = MaterialTheme.colorScheme.onPrimary,
+                ),
+            ) {
+                Text(stringResource(R.string.action_drive_connect))
+            }
+        } else {
+            Button(
+                onClick = onSyncNow,
+                enabled = !busy,
+                modifier = Modifier.fillMaxWidth(),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    contentColor = MaterialTheme.colorScheme.onPrimary,
+                ),
+            ) {
+                Text(stringResource(R.string.action_drive_sync_now))
+            }
         }
-        Spacer(modifier = Modifier.height(8.dp))
-        Button(
-            onClick = onRestore,
-            enabled = !busy,
-            modifier = Modifier.fillMaxWidth(),
-            colors = ButtonDefaults.buttonColors(
-                containerColor = MaterialTheme.colorScheme.secondary,
-                contentColor = MaterialTheme.colorScheme.onSecondary,
-            ),
-        ) {
-            Text(stringResource(R.string.action_google_drive_import))
+    }
+}
+
+@Composable
+private fun driveSyncStatusText(status: DriveSyncStatus): String {
+    return when (status) {
+        DriveSyncStatus.NotConnected -> stringResource(R.string.drive_sync_status_not_connected)
+        DriveSyncStatus.Checking -> stringResource(R.string.drive_sync_status_checking)
+        DriveSyncStatus.Syncing -> stringResource(R.string.drive_sync_status_syncing)
+        is DriveSyncStatus.Error -> status.message
+        is DriveSyncStatus.Compared -> {
+            val differences = status.differences
+            when {
+                !status.hasRemoteFile -> pluralStringResource(
+                    R.plurals.drive_sync_status_no_remote_file,
+                    differences.onlyOnPhone,
+                    differences.onlyOnPhone,
+                )
+                differences.isInSync -> stringResource(R.string.drive_sync_status_synced)
+                else -> {
+                    val parts = buildList {
+                        if (differences.onlyOnPhone > 0) {
+                            add(pluralStringResource(R.plurals.drive_sync_only_on_phone, differences.onlyOnPhone, differences.onlyOnPhone))
+                        }
+                        if (differences.onlyOnDrive > 0) {
+                            add(pluralStringResource(R.plurals.drive_sync_only_on_drive, differences.onlyOnDrive, differences.onlyOnDrive))
+                        }
+                        if (differences.editedOnBoth > 0) {
+                            add(pluralStringResource(R.plurals.drive_sync_edited_on_both, differences.editedOnBoth, differences.editedOnBoth))
+                        }
+                        if (differences.deletedOnDrive > 0) {
+                            add(pluralStringResource(R.plurals.drive_sync_deleted_on_drive, differences.deletedOnDrive, differences.deletedOnDrive))
+                        }
+                        if (differences.deletedOnPhone > 0) {
+                            add(pluralStringResource(R.plurals.drive_sync_deleted_on_phone, differences.deletedOnPhone, differences.deletedOnPhone))
+                        }
+                        if (differences.settingsDiffer) {
+                            add(stringResource(R.string.drive_sync_settings_differ))
+                        }
+                    }
+                    pluralStringResource(
+                        R.plurals.drive_sync_status_differences,
+                        differences.total,
+                        differences.total,
+                        parts.joinToString(", "),
+                    )
+                }
+            }
         }
     }
 }
