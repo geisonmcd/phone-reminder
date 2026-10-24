@@ -174,9 +174,11 @@ object ReminderExchange {
 
             val textLines = mutableListOf<String>()
             while (true) {
-                val line = cursor.readLineOrNull()
+                // Keep reminder text lines as written (no per-line trimEnd) so a sync round-trip is
+                // lossless: trailing spaces inside multi-line text used to be dropped here.
+                val line = cursor.readRawLineOrNull()
                     ?: throw IllegalArgumentException("Reminder text is missing 'End reminder'.")
-                if (line == reminderEnd) {
+                if (line.trimEnd() == reminderEnd) {
                     break
                 }
                 textLines += line
@@ -277,6 +279,10 @@ object ReminderExchange {
 
         fun readLineOrNull(): String? {
             return lines.getOrNull(index++)?.trimEnd()
+        }
+
+        fun readRawLineOrNull(): String? {
+            return lines.getOrNull(index++)
         }
 
         fun readNumber(prefix: String, errorLabel: String): Int {

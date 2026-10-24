@@ -63,7 +63,7 @@ object DriveSync {
         val reminders = firstPass.map { (reminder, explicitId) ->
             val id = explicitId
                 ?: local.reminders.firstOrNull { candidate ->
-                    candidate.id !in claimedLocalIds && candidate.text.trim() == reminder.text.trim()
+                    candidate.id !in claimedLocalIds && normalizeText(candidate.text) == normalizeText(reminder.text)
                 }?.id?.also { claimedLocalIds += it }
                 ?: legacyId(reminder.text, legacyOccurrences)
             val createdAt = reminder.createdAtEpochMillis
@@ -192,7 +192,25 @@ object DriveSync {
     }
 
     private fun sameContent(a: ReminderItem, b: ReminderItem): Boolean {
-        return a.text.trim() == b.text.trim() && a.schedule == b.schedule
+        return normalizeText(a.text) == normalizeText(b.text) && normalizeSchedule(a.schedule) == normalizeSchedule(b.schedule)
+    }
+
+    /**
+     * Text as compared by sync: line endings unified, trailing whitespace on each line dropped and
+     * the whole text trimmed. Differences only in that whitespace are not real edits (older builds
+     * dropped trailing spaces on inner lines when reading the Drive file).
+     */
+    internal fun normalizeText(text: String): String {
+        return text.replace("\r\n", "\n").replace('\r', '\n')
+            .lines()
+            .joinToString("\n") { it.trimEnd() }
+            .trim()
+    }
+
+    private fun normalizeSchedule(schedule: ScheduleSettings): ScheduleSettings {
+        return schedule.copy(
+            notificationsPerDay = schedule.notificationsPerDay.coerceIn(1, MAX_NOTIFICATIONS_PER_DAY),
+        )
     }
 
     private fun latestTombstones(tombstones: List<ReminderTombstone>): Map<String, ReminderTombstone> {
@@ -200,7 +218,7 @@ object DriveSync {
     }
 
     private fun legacyId(text: String, occurrences: MutableMap<String, Int>): String {
-        val key = text.trim()
+        val key = normalizeText(text)
         val occurrence = occurrences.getOrDefault(key, 0)
         occurrences[key] = occurrence + 1
         return "legacy-" + UUID.nameUUIDFromBytes("$key\u0000$occurrence".toByteArray(Charsets.UTF_8))
