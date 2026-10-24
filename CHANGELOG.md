@@ -1,5 +1,6 @@
 # Changelog
 
+- 2026-10-23 — Turned Google Drive backup into two-way sync: a home-screen card compares phone and Drive (read-only) on open and Sync now merges by newest edit with deletion tombstones; Drive buttons removed from Settings.
 - 2026-10-23 — Uploaded the Drive backup rebuild and settings crash fix to Play internal testing as 1.0.37 (40), with Firebase Crashlytics config and mapping upload enabled in CI.
 - 2026-10-23 — Updated the Play full description and data safety notes to cover the optional Google Drive backup instead of claiming no cloud sync.
 - 2026-10-23 — Added a GitHub Pages home page, documented optional Google Drive backup (drive.file scope) in the privacy policy, and refreshed Play release notes for the next release (versionCode >= 40).

@@ -61,7 +61,12 @@ class NotificationReceiver : BroadcastReceiver() {
         val state = ReminderStorage.load(context)
         val updatedReminders = state.reminders.map { reminder ->
             if (reminder.id == reminderId) {
-                reminder.copy(schedule = adjustScheduleFrequency(reminder.schedule, adjustment))
+                val adjusted = adjustScheduleFrequency(reminder.schedule, adjustment)
+                if (adjusted == reminder.schedule) {
+                    reminder
+                } else {
+                    reminder.copy(schedule = adjusted).touched(System.currentTimeMillis())
+                }
             } else {
                 reminder
             }

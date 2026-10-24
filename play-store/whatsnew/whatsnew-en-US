@@ -1,5 +1,5 @@
-Fixes Google Drive backup and a settings crash.
+Google Drive backup is now two-way sync.
 
-- Google Drive backup now uses Google's new authorization flow
-- Clearer error messages when backup or restore fails
-- Fixed a crash when changing reminder time settings
+- New Google Drive card on the home screen shows when you last synced and what differs between this phone and Drive
+- Sync now merges both sides: newest edits win and deletions carry over
+- Drive backup and import moved from Settings into the new card; text export/import stays in Settings

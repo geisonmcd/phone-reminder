@@ -16,12 +16,15 @@ import com.geison.phonereminder.backup.GoogleDriveAuthorizationException
 import com.geison.phonereminder.backup.GoogleDriveBackupManager
 import com.geison.phonereminder.backup.GoogleDriveConsentRequiredException
 import com.geison.phonereminder.backup.GoogleDriveFailure
+import com.geison.phonereminder.backup.RemoteSyncFile
 import com.geison.phonereminder.data.AppState
+import com.geison.phonereminder.data.DriveSync
 import com.geison.phonereminder.data.MAX_NOTIFICATIONS_PER_DAY
 import com.geison.phonereminder.data.ReminderExchange
 import com.geison.phonereminder.data.ReminderImportMerge
 import com.geison.phonereminder.data.ReminderItem
 import com.geison.phonereminder.data.ReminderRepository
+import com.geison.phonereminder.data.ReminderStorage
 import com.geison.phonereminder.data.ScheduleCadence
 import com.geison.phonereminder.data.ScheduleSettings
 import com.geison.phonereminder.diagnostics.Diagnostics
@@ -32,31 +35,67 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
-import java.text.DateFormat
 import java.time.DayOfWeek
-import java.util.Date
 
 class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val repository = ReminderRepository(application)
     private val googleDriveManager = GoogleDriveBackupManager(application)
     private val mutableOpenReminderRequest = MutableStateFlow<String?>(null)
-    private val mutableGoogleDriveMessage = MutableStateFlow<String?>(null)
-    private val mutableGoogleDriveRestorePreview = MutableStateFlow<ImportPreviewResult.Ready?>(null)
     private val mutableGoogleDriveConsentRequest = MutableStateFlow<PendingIntent?>(null)
-    private val mutableGoogleDriveBusy = MutableStateFlow(false)
+    private val mutableDrivePhase = MutableStateFlow<DrivePhase>(DrivePhase.NotConnected)
+    private val mutableRemoteSnapshot = MutableStateFlow<RemoteSnapshot?>(null)
+    private val mutableLastSyncAt = MutableStateFlow(ReminderStorage.loadLastDriveSyncAt(application))
     private var pendingGoogleDriveConsentAction: GoogleDriveAction? = null
+    private var lastAutomaticCompareAt = 0L
     private var scheduleNotificationsJob: Job? = null
 
     val state = repository.state
     val openReminderRequest = mutableOpenReminderRequest.asStateFlow()
-    val googleDriveMessage = mutableGoogleDriveMessage.asStateFlow()
-    val googleDriveRestorePreview = mutableGoogleDriveRestorePreview.asStateFlow()
     val googleDriveConsentRequest = mutableGoogleDriveConsentRequest.asStateFlow()
-    val googleDriveBusy = mutableGoogleDriveBusy.asStateFlow()
 
-    enum class GoogleDriveAction { BACKUP, RESTORE }
+    /** Home screen Drive card. Differences are recomputed from the cached Drive copy on every local edit. */
+    val driveSyncUiState: StateFlow<DriveSyncUiState> = combine(
+        repository.state,
+        mutableDrivePhase,
+        mutableRemoteSnapshot,
+        mutableLastSyncAt,
+    ) { local, phase, snapshot, lastSyncAt ->
+        val status = when (phase) {
+            DrivePhase.NotConnected -> DriveSyncStatus.NotConnected
+            DrivePhase.Checking -> DriveSyncStatus.Checking
+            DrivePhase.Syncing -> DriveSyncStatus.Syncing
+            is DrivePhase.Error -> DriveSyncStatus.Error(phase.message)
+            DrivePhase.Ready -> if (snapshot == null) {
+                DriveSyncStatus.NotConnected
+            } else {
+                DriveSyncStatus.Compared(
+                    differences = DriveSync.diff(local, snapshot.resolve(local)),
+                    hasRemoteFile = snapshot.parsed != null,
+                )
+            }
+        }
+        DriveSyncUiState(
+            isEnabled = BuildConfig.GOOGLE_DRIVE_BACKUP_ENABLED,
+            status = status,
+            lastSyncAtEpochMillis = lastSyncAt,
+        )
+    }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.Eagerly,
+        initialValue = DriveSyncUiState(
+            isEnabled = BuildConfig.GOOGLE_DRIVE_BACKUP_ENABLED,
+            status = DriveSyncStatus.NotConnected,
+            lastSyncAtEpochMillis = mutableLastSyncAt.value,
+        ),
+    )
+
+    enum class GoogleDriveAction { CONNECT, SYNC }
 
     fun addReminder(text: String): String? {
         val reminderId = repository.addReminder(text)
@@ -188,20 +227,46 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         scheduleNotifications()
     }
 
-    /** Entry point for the Drive buttons: silently authorizes, or asks the UI to show consent. */
-    fun startGoogleDriveAction(action: GoogleDriveAction) {
-        if (!BuildConfig.GOOGLE_DRIVE_BACKUP_ENABLED || mutableGoogleDriveBusy.value) {
+    /** Called when the app is opened or returns to the foreground: read-only compare, never consent UI. */
+    fun onAppForeground() {
+        if (!BuildConfig.GOOGLE_DRIVE_BACKUP_ENABLED) {
             return
         }
-        mutableGoogleDriveBusy.value = true
-        mutableGoogleDriveMessage.value = getApplication<Application>().getString(R.string.message_google_drive_working)
+        repository.reloadFromStorage()
+        val now = System.currentTimeMillis()
+        if (isDriveBusy() || now - lastAutomaticCompareAt < AUTOMATIC_COMPARE_THROTTLE_MILLIS) {
+            return
+        }
+        lastAutomaticCompareAt = now
+        mutableDrivePhase.value = DrivePhase.Checking
         viewModelScope.launch {
-            val authorization = runCatching { googleDriveManager.authorize() }
-            authorization.fold(
+            val authorization = runCatching { googleDriveManager.authorize() }.getOrElse { error ->
+                handleAutomaticCompareFailure(error)
+                return@launch
+            }
+            when (authorization) {
+                is DriveAuthorization.Granted -> performCompare(authorization.accessToken, interactive = false)
+                // Never show consent automatically; the card offers a Connect button instead.
+                is DriveAuthorization.NeedsConsent -> mutableDrivePhase.value = DrivePhase.NotConnected
+            }
+        }
+    }
+
+    /** "Connect" button: may show the Google consent screen, then compares (read-only). */
+    fun connectGoogleDrive() = startInteractiveDriveAction(GoogleDriveAction.CONNECT)
+
+    /** "Sync now" button: two-way merge, then writes the phone and Drive. */
+    fun syncGoogleDriveNow() = startInteractiveDriveAction(GoogleDriveAction.SYNC)
+
+    private fun startInteractiveDriveAction(action: GoogleDriveAction) {
+        if (!BuildConfig.GOOGLE_DRIVE_BACKUP_ENABLED || isDriveBusy()) {
+            return
+        }
+        mutableDrivePhase.value = if (action == GoogleDriveAction.SYNC) DrivePhase.Syncing else DrivePhase.Checking
+        viewModelScope.launch {
+            runCatching { googleDriveManager.authorize() }.fold(
                 onSuccess = { handleGoogleDriveAuthorization(it, action) },
-                onFailure = { error ->
-                    finishGoogleDriveFailure(action, "google_drive_authorize_failed", error)
-                },
+                onFailure = { error -> finishGoogleDriveFailure(action, "google_drive_authorize_failed", error) },
             )
         }
     }
@@ -215,15 +280,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         pendingGoogleDriveConsentAction = null
         mutableGoogleDriveConsentRequest.value = null
         if (action == null) {
-            mutableGoogleDriveBusy.value = false
+            restoreIdlePhase()
             return
         }
         if (result.resultCode != Activity.RESULT_OK) {
             Diagnostics.log("google_drive_consent_cancelled_result_${result.resultCode}")
-            mutableGoogleDriveBusy.value = false
-            mutableGoogleDriveMessage.value = getApplication<Application>().getString(
-                R.string.message_google_drive_sign_in_cancelled,
-            )
+            restoreIdlePhase()
             return
         }
         runCatching { googleDriveManager.authorizationFromIntent(result.data) }.fold(
@@ -242,57 +304,25 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         )
     }
 
-    fun clearGoogleDriveMessage() {
-        mutableGoogleDriveMessage.value = null
-    }
-
-    fun clearGoogleDriveRestorePreview() {
-        mutableGoogleDriveRestorePreview.value = null
-    }
-
     fun onGoogleDriveConsentLaunched() {
         mutableGoogleDriveConsentRequest.value = null
     }
 
     fun onGoogleDriveConsentLaunchFailed(error: Throwable) {
-        val action = pendingGoogleDriveConsentAction ?: GoogleDriveAction.BACKUP
+        val action = pendingGoogleDriveConsentAction ?: GoogleDriveAction.CONNECT
         pendingGoogleDriveConsentAction = null
         mutableGoogleDriveConsentRequest.value = null
         finishGoogleDriveFailure(action, "google_drive_consent_launch_failed", error)
     }
 
-    fun importGoogleDriveReminders(importedState: AppState) {
-        repository.replaceState(importedState)
-        recordImportSuccess(
-            mode = "google_drive_replace",
-            importedReminderCount = importedState.reminders.size,
-            totalReminderCount = importedState.reminders.size,
-        )
-        val count = importedState.reminders.size
-        mutableGoogleDriveMessage.value = getApplication<Application>().resources.getQuantityString(
-            R.plurals.message_imported_reminders,
-            count,
-            count,
-        )
+    private fun isDriveBusy(): Boolean {
+        val phase = mutableDrivePhase.value
+        return phase == DrivePhase.Checking || phase == DrivePhase.Syncing ||
+            mutableGoogleDriveConsentRequest.value != null || pendingGoogleDriveConsentAction != null
     }
 
-    fun mergeGoogleDriveReminders(importedState: AppState) {
-        val mergedState = ReminderImportMerge.merge(
-            currentState = state.value,
-            importedState = importedState,
-        )
-        repository.replaceState(mergedState)
-        recordImportSuccess(
-            mode = "google_drive_merge",
-            importedReminderCount = importedState.reminders.size,
-            totalReminderCount = mergedState.reminders.size,
-        )
-        val count = importedState.reminders.size
-        mutableGoogleDriveMessage.value = getApplication<Application>().resources.getQuantityString(
-            R.plurals.message_merged_reminders,
-            count,
-            count,
-        )
+    private fun restoreIdlePhase() {
+        mutableDrivePhase.value = if (mutableRemoteSnapshot.value != null) DrivePhase.Ready else DrivePhase.NotConnected
     }
 
     private fun handleGoogleDriveAuthorization(authorization: DriveAuthorization, action: GoogleDriveAction) {
@@ -307,73 +337,105 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     private fun runGoogleDriveAction(accessToken: String, action: GoogleDriveAction) {
-        mutableGoogleDriveBusy.value = true
         viewModelScope.launch {
             when (action) {
-                GoogleDriveAction.BACKUP -> performGoogleDriveBackup(accessToken)
-                GoogleDriveAction.RESTORE -> performGoogleDriveRestore(accessToken)
+                GoogleDriveAction.CONNECT -> performCompare(accessToken, interactive = true)
+                GoogleDriveAction.SYNC -> performSync(accessToken)
             }
         }
     }
 
-    private suspend fun performGoogleDriveBackup(accessToken: String) {
-        Diagnostics.log("google_drive_backup_start")
-        val content = ReminderExchange.export(state.value)
-        runCatching { googleDriveManager.backup(accessToken, content) }.fold(
-            onSuccess = {
-                mutableGoogleDriveBusy.value = false
-                val count = state.value.reminders.size
-                Diagnostics.setKey("last_google_drive_backup_count", count)
-                val syncedAt = DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT)
-                    .format(Date())
-                mutableGoogleDriveMessage.value = getApplication<Application>().resources.getQuantityString(
-                    R.plurals.message_google_drive_backup_status,
-                    count,
-                    count,
-                    syncedAt,
-                )
+    /** Read-only: downloads the Drive file and caches it; differences are recomputed from it. */
+    private suspend fun performCompare(accessToken: String, interactive: Boolean) {
+        mutableDrivePhase.value = DrivePhase.Checking
+        Diagnostics.log("google_drive_compare_start")
+        runCatching { googleDriveManager.fetchSyncFile(accessToken) }.fold(
+            onSuccess = { file ->
+                mutableRemoteSnapshot.value = RemoteSnapshot.from(file)
+                mutableDrivePhase.value = DrivePhase.Ready
             },
             onFailure = { error ->
-                finishGoogleDriveFailure(GoogleDriveAction.BACKUP, "google_drive_backup_failed", error)
+                if (interactive) {
+                    finishGoogleDriveFailure(GoogleDriveAction.CONNECT, "google_drive_compare_failed", error)
+                } else {
+                    handleAutomaticCompareFailure(error)
+                }
             },
         )
     }
 
-    private suspend fun performGoogleDriveRestore(accessToken: String) {
-        Diagnostics.log("google_drive_restore_start")
+    private suspend fun performSync(accessToken: String) {
+        mutableDrivePhase.value = DrivePhase.Syncing
+        Diagnostics.log("google_drive_sync_start")
         runCatching {
-            val content = googleDriveManager.restore(accessToken)
-            ReminderExchange.import(content)
+            val remoteFile = googleDriveManager.fetchSyncFile(accessToken)
+            val localBefore = state.value
+            val now = System.currentTimeMillis()
+            val remote = RemoteSnapshot.from(remoteFile).resolve(localBefore)
+            val merged = DriveSync.merge(localBefore, remote, now)
+            val content = ReminderExchange.export(merged, includeSyncMetadata = true)
+            googleDriveManager.backup(accessToken, content)
+            Triple(localBefore, merged, content)
         }.fold(
-            onSuccess = { importedState ->
-                mutableGoogleDriveBusy.value = false
-                mutableGoogleDriveMessage.value = null
-                mutableGoogleDriveRestorePreview.value = ImportPreviewResult.Ready(
-                    importedState = importedState,
-                    currentReminderCount = state.value.reminders.size,
+            onSuccess = { (localBefore, merged, content) ->
+                val now = System.currentTimeMillis()
+                val localNow = state.value
+                // Edits made while uploading are kept; the next sync sends them to Drive.
+                val finalState = if (localNow == localBefore) merged else DriveSync.merge(localNow, merged, now)
+                repository.replaceWithSyncedState(finalState)
+                ReminderStorage.saveLastDriveSyncAt(getApplication(), now)
+                mutableLastSyncAt.value = now
+                mutableRemoteSnapshot.value = RemoteSnapshot(
+                    parsed = ReminderExchange.parse(content),
+                    legacyTimestampMillis = now,
                 )
+                mutableDrivePhase.value = DrivePhase.Ready
+                Diagnostics.setKey("reminder_count", finalState.reminders.size)
+                Diagnostics.setKey("last_google_drive_sync_count", merged.reminders.size)
+                scheduleNotifications()
             },
             onFailure = { error ->
-                finishGoogleDriveFailure(GoogleDriveAction.RESTORE, "google_drive_restore_failed", error)
+                finishGoogleDriveFailure(GoogleDriveAction.SYNC, "google_drive_sync_failed", error)
             },
         )
     }
 
-    private fun finishGoogleDriveFailure(action: GoogleDriveAction, area: String, error: Throwable) {
+    private fun handleAutomaticCompareFailure(error: Throwable) {
+        when {
+            error is CancellationException -> restoreIdlePhase()
+            error is GoogleDriveConsentRequiredException -> mutableDrivePhase.value = DrivePhase.NotConnected
+            else -> finishGoogleDriveFailure(GoogleDriveAction.CONNECT, "google_drive_auto_compare_failed", error, allowConsent = false)
+        }
+    }
+
+    private fun finishGoogleDriveFailure(
+        action: GoogleDriveAction,
+        area: String,
+        error: Throwable,
+        allowConsent: Boolean = true,
+    ) {
         if (error is CancellationException) {
-            mutableGoogleDriveBusy.value = false
+            restoreIdlePhase()
             return
         }
-        // A cached grant was revoked mid-call: ask for consent again instead of failing.
+        // A cached grant was revoked mid-call: ask for consent again (only after a button tap).
         if (error is GoogleDriveConsentRequiredException) {
-            pendingGoogleDriveConsentAction = action
-            mutableGoogleDriveConsentRequest.value = error.pendingIntent
+            if (allowConsent) {
+                pendingGoogleDriveConsentAction = action
+                mutableGoogleDriveConsentRequest.value = error.pendingIntent
+            } else {
+                mutableDrivePhase.value = DrivePhase.NotConnected
+            }
             return
         }
-        mutableGoogleDriveBusy.value = false
         val statusCode = (error as? ApiException)?.statusCode
         val failure = GoogleDriveFailure.classify(error, statusCode)
-        if (failure != GoogleDriveFailure.CANCELLED && failure != GoogleDriveFailure.NO_BACKUP) {
+        if (failure == GoogleDriveFailure.CANCELLED) {
+            restoreIdlePhase()
+            return
+        }
+        // Automatic checks run on every app open; only report failures from button taps.
+        if (allowConsent && failure != GoogleDriveFailure.NETWORK) {
             Diagnostics.recordNonFatal(
                 area = area,
                 throwable = error,
@@ -387,7 +449,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 },
             )
         }
-        mutableGoogleDriveMessage.value = googleDriveFailureMessage(action, failure, error, statusCode)
+        mutableDrivePhase.value = DrivePhase.Error(googleDriveFailureMessage(action, failure, error, statusCode))
     }
 
     private fun googleDriveFailureMessage(
@@ -412,8 +474,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     ?: app.getString(R.string.message_unknown_error)
                 app.getString(
                     when (action) {
-                        GoogleDriveAction.BACKUP -> R.string.message_google_drive_backup_failed
-                        GoogleDriveAction.RESTORE -> R.string.message_google_drive_restore_failed
+                        GoogleDriveAction.SYNC -> R.string.message_google_drive_sync_failed
+                        GoogleDriveAction.CONNECT -> R.string.message_google_drive_check_failed
                     },
                     detail,
                 )
@@ -535,6 +597,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     companion object {
+        private const val AUTOMATIC_COMPARE_THROTTLE_MILLIS = 30_000L
+
         fun factory(application: Application): ViewModelProvider.Factory {
             return object : ViewModelProvider.Factory {
                 @Suppress("UNCHECKED_CAST")
@@ -555,4 +619,46 @@ sealed interface ImportPreviewResult {
     data class Error(
         val message: String,
     ) : ImportPreviewResult
+}
+
+sealed interface DriveSyncStatus {
+    data object NotConnected : DriveSyncStatus
+    data object Checking : DriveSyncStatus
+    data object Syncing : DriveSyncStatus
+    data class Compared(
+        val differences: DriveSync.Differences,
+        val hasRemoteFile: Boolean,
+    ) : DriveSyncStatus
+    data class Error(val message: String) : DriveSyncStatus
+}
+
+data class DriveSyncUiState(
+    val isEnabled: Boolean,
+    val status: DriveSyncStatus,
+    val lastSyncAtEpochMillis: Long?,
+)
+
+private sealed interface DrivePhase {
+    data object NotConnected : DrivePhase
+    data object Checking : DrivePhase
+    data object Syncing : DrivePhase
+    data object Ready : DrivePhase
+    data class Error(val message: String) : DrivePhase
+}
+
+/** Last Drive file downloaded; [parsed] is null when Drive has no sync file yet. */
+private data class RemoteSnapshot(
+    val parsed: ReminderExchange.ParsedExport?,
+    val legacyTimestampMillis: Long,
+) {
+    fun resolve(local: AppState): AppState? = parsed?.let {
+        DriveSync.resolveRemote(local, it, legacyTimestampMillis)
+    }
+
+    companion object {
+        fun from(file: RemoteSyncFile?): RemoteSnapshot = RemoteSnapshot(
+            parsed = file?.let { ReminderExchange.parse(it.content) },
+            legacyTimestampMillis = file?.modifiedTimeEpochMillis ?: 0L,
+        )
+    }
 }

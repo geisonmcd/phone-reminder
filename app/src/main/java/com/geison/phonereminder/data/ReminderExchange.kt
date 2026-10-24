@@ -20,7 +20,36 @@ object ReminderExchange {
     private const val legacyReminderStartHourLabel = "Start hour: "
     private const val legacyReminderEndHourLabel = "End hour: "
 
-    fun export(state: AppState): String {
+    // Optional Drive sync metadata (added in 1.0.38). Older app versions ignore these lines, so a
+    // file written with sync metadata still imports there; files without them still import here.
+    private const val settingsUpdatedAtLabel = "Settings updated at: "
+    private const val deletedReminderLabel = "Deleted reminder: "
+    private const val idLabel = "Id: "
+    private const val createdAtLabel = "Created at: "
+    private const val updatedAtLabel = "Updated at: "
+
+    /** A reminder as written in a file; sync metadata is null when the file predates Drive sync. */
+    data class ParsedReminder(
+        val id: String?,
+        val text: String,
+        val createdAtEpochMillis: Long?,
+        val updatedAtEpochMillis: Long?,
+        val schedule: ScheduleSettings,
+    )
+
+    data class ParsedExport(
+        val reminders: List<ParsedReminder>,
+        val notificationWindow: NotificationWindowSettings,
+        val reminderDays: Set<DayOfWeek>,
+        val settingsUpdatedAtEpochMillis: Long?,
+        val deletedReminders: List<ReminderTombstone>,
+    )
+
+    /**
+     * Plain v1 export for the user-facing .txt export. [includeSyncMetadata] adds ids, timestamps
+     * and tombstones as optional lines for the Google Drive sync file.
+     */
+    fun export(state: AppState, includeSyncMetadata: Boolean = false): String {
         val lines = mutableListOf(
             header,
             "",
@@ -33,6 +62,12 @@ object ReminderExchange {
                 .sortedBy { it.value }
                 .joinToString(",") { it.name },
         )
+        if (includeSyncMetadata) {
+            lines += settingsUpdatedAtLabel + state.settingsUpdatedAtEpochMillis
+            state.deletedReminders.forEach { tombstone ->
+                lines += deletedReminderLabel + tombstone.id + " " + tombstone.deletedAtEpochMillis
+            }
+        }
 
         state.reminders.forEach { reminder ->
             lines += ""
@@ -49,12 +84,34 @@ object ReminderExchange {
                     .sortedBy { it.value }
                     .joinToString(",") { it.name }
             }
+            if (includeSyncMetadata) {
+                lines += idLabel + reminder.id
+                lines += createdAtLabel + reminder.createdAtEpochMillis
+                lines += updatedAtLabel + reminder.updatedAtEpochMillis
+            }
         }
 
         return lines.joinToString("\n") + "\n"
     }
 
+    /** Imports a file for the .txt import flow: every reminder gets a fresh id. */
     fun import(rawText: String): AppState {
+        val parsed = parse(rawText)
+        return AppState(
+            reminders = parsed.reminders.map { reminder ->
+                ReminderItem(
+                    id = UUID.randomUUID().toString(),
+                    text = reminder.text,
+                    schedule = reminder.schedule,
+                )
+            },
+            notificationWindow = parsed.notificationWindow,
+            reminderDays = parsed.reminderDays,
+        )
+    }
+
+    /** Parses a v1 file, keeping optional sync metadata (ids, timestamps, tombstones) when present. */
+    fun parse(rawText: String): ParsedExport {
         val normalized = rawText.replace("\r\n", "\n").replace('\r', '\n')
         val lines = normalized.lines()
         val cursor = LineCursor(lines)
@@ -67,6 +124,8 @@ object ReminderExchange {
         var defaultStartHour: Int? = null
         var defaultEndHour: Int? = null
         var reminderDays = DEFAULT_REMINDER_DAYS
+        var settingsUpdatedAt: Long? = null
+        val tombstones = mutableListOf<ReminderTombstone>()
         while (!cursor.isAtEnd && cursor.peekLine() != separator) {
             when {
                 cursor.peekLine()?.startsWith(defaultStartHourLabel) == true -> {
@@ -87,11 +146,19 @@ object ReminderExchange {
                     reminderDays = parseReminderDays(cursor.readLine().removePrefix(reminderDaysLabel))
                 }
 
+                cursor.peekLine()?.startsWith(settingsUpdatedAtLabel) == true -> {
+                    settingsUpdatedAt = cursor.readLine().removePrefix(settingsUpdatedAtLabel).trim().toLongOrNull()
+                }
+
+                cursor.peekLine()?.startsWith(deletedReminderLabel) == true -> {
+                    parseTombstone(cursor.readLine().removePrefix(deletedReminderLabel))?.let { tombstones += it }
+                }
+
                 else -> cursor.readLine()
             }
         }
 
-        val reminders = mutableListOf<ReminderItem>()
+        val reminders = mutableListOf<ParsedReminder>()
         while (true) {
             cursor.skipBlanks()
             if (cursor.isAtEnd) {
@@ -143,9 +210,11 @@ object ReminderExchange {
             defaultStartHour = importedMetadata.startHour
             defaultEndHour = importedMetadata.endHour
 
-            reminders += ReminderItem(
-                id = UUID.randomUUID().toString(),
+            reminders += ParsedReminder(
+                id = importedMetadata.id,
                 text = reminderText,
+                createdAtEpochMillis = importedMetadata.createdAt,
+                updatedAtEpochMillis = importedMetadata.updatedAt,
                 schedule = ScheduleSettings(
                     notificationsPerDay = notificationsPerDay,
                     reminderDays = importedMetadata.reminderDays,
@@ -157,14 +226,23 @@ object ReminderExchange {
         val startHour = (defaultStartHour ?: 9).coerceIn(0, 22)
         val endHour = (defaultEndHour ?: 20).coerceIn(startHour + 1, 23)
 
-        return AppState(
+        return ParsedExport(
             reminders = reminders,
             notificationWindow = NotificationWindowSettings(
                 startHour = startHour,
                 endHour = endHour,
             ),
             reminderDays = reminderDays,
+            settingsUpdatedAtEpochMillis = settingsUpdatedAt,
+            deletedReminders = tombstones,
         )
+    }
+
+    private fun parseTombstone(raw: String): ReminderTombstone? {
+        val parts = raw.trim().split(Regex("\\s+"))
+        if (parts.size != 2 || parts[0].isBlank()) return null
+        val deletedAt = parts[1].toLongOrNull() ?: return null
+        return ReminderTombstone(id = parts[0], deletedAtEpochMillis = deletedAt)
     }
 
     private fun parseReminderDays(rawDays: String): Set<DayOfWeek> {
@@ -220,6 +298,9 @@ object ReminderExchange {
         var endHour = defaultEndHour
         var reminderDays: Set<DayOfWeek>? = null
         var cadence = ScheduleCadence.DAILY
+        var id: String? = null
+        var createdAt: Long? = null
+        var updatedAt: Long? = null
 
         while (true) {
             val line = cursor.peekLine()?.trimEnd() ?: break
@@ -254,6 +335,18 @@ object ReminderExchange {
                         ?: ScheduleCadence.DAILY
                 }
 
+                line.startsWith(idLabel) -> {
+                    id = cursor.readLine().removePrefix(idLabel).trim().takeIf { it.isNotEmpty() }
+                }
+
+                line.startsWith(createdAtLabel) -> {
+                    createdAt = cursor.readLine().removePrefix(createdAtLabel).trim().toLongOrNull()
+                }
+
+                line.startsWith(updatedAtLabel) -> {
+                    updatedAt = cursor.readLine().removePrefix(updatedAtLabel).trim().toLongOrNull()
+                }
+
                 else -> cursor.readLine()
             }
         }
@@ -263,6 +356,9 @@ object ReminderExchange {
             endHour = endHour,
             reminderDays = reminderDays,
             cadence = cadence,
+            id = id,
+            createdAt = createdAt,
+            updatedAt = updatedAt,
         )
     }
 
@@ -271,5 +367,8 @@ object ReminderExchange {
         val endHour: Int?,
         val reminderDays: Set<DayOfWeek>?,
         val cadence: ScheduleCadence,
+        val id: String?,
+        val createdAt: Long?,
+        val updatedAt: Long?,
     )
 }

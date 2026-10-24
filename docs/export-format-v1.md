@@ -38,6 +38,39 @@ Notifications per week: <number>
 Notifications per day: <number>
 ```
 
+## Optional Lines
+
+Reminder blocks may contain optional lines after `Notifications per day`
+(`Cadence: <DAILY|WEEKLY|...>`, `Reminder days: <DAY,DAY>`).
+
+### Google Drive sync metadata
+
+The Google Drive sync file (`Smart Random Reminder Backup.txt`) is a v1 export
+with extra optional lines. Text exports from Settings do not write them.
+
+After the global settings:
+
+```text
+Settings updated at: <epoch millis>
+Deleted reminder: <reminder id> <deleted at, epoch millis>
+```
+
+`Deleted reminder` may repeat (one line per tombstone, kept about 90 days).
+
+At the end of each reminder block:
+
+```text
+Id: <reminder id>
+Created at: <epoch millis>
+Updated at: <epoch millis>
+```
+
+All of these are optional. Files without them (older backups) are read as:
+no tombstones, settings timestamp 0, and `Updated at` = `Created at`.
+Reminders without an `Id` are matched to phone reminders with the same text.
+Older app versions ignore these lines, so they can still import the file.
+The `.txt` import in Settings ignores them too and creates fresh reminders.
+
 ## Compatibility Rules
 
 - Do not rename or remove the existing v1 labels.

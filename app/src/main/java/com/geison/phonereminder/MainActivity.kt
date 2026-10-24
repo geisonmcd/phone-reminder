@@ -104,6 +104,12 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    override fun onStart() {
+        super.onStart()
+        // App opened or back in the foreground: read-only Drive compare if already authorized.
+        viewModel.onAppForeground()
+    }
+
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)

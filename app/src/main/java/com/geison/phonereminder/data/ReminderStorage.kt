@@ -16,6 +16,7 @@ import kotlinx.serialization.json.put
 object ReminderStorage {
     private const val PREFS_NAME = "phone_reminder_prefs"
     private const val STATE_KEY = "app_state"
+    private const val LAST_DRIVE_SYNC_KEY = "last_drive_sync_at"
 
     private val json = Json {
         ignoreUnknownKeys = true
@@ -26,8 +27,7 @@ object ReminderStorage {
         val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         val raw = prefs.getString(STATE_KEY, null) ?: return AppState()
         return runCatching {
-            val migrated = migrateLegacyState(json.parseToJsonElement(raw))
-            json.decodeFromJsonElement<AppState>(migrated).normalized()
+            decode(raw)
         }.getOrElse { error ->
             Diagnostics.recordNonFatal(
                 area = "storage_load_failed",
@@ -43,9 +43,27 @@ object ReminderStorage {
     fun save(context: Context, state: AppState) {
         val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         prefs.edit()
-            .putString(STATE_KEY, json.encodeToString(state))
+            .putString(STATE_KEY, encode(state))
             .apply()
     }
+
+    /** Device-local time of the last successful two-way Drive sync, or null if never synced. */
+    fun loadLastDriveSyncAt(context: Context): Long? {
+        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        return prefs.getLong(LAST_DRIVE_SYNC_KEY, 0L).takeIf { it > 0L }
+    }
+
+    fun saveLastDriveSyncAt(context: Context, epochMillis: Long) {
+        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        prefs.edit().putLong(LAST_DRIVE_SYNC_KEY, epochMillis).apply()
+    }
+
+    /** Decodes stored JSON; exposed for tests of the migration of pre-sync data. */
+    internal fun decode(raw: String): AppState {
+        return json.decodeFromJsonElement<AppState>(migrateLegacyState(json.parseToJsonElement(raw))).normalized()
+    }
+
+    internal fun encode(state: AppState): String = json.encodeToString(state)
 
     private fun migrateLegacyState(element: JsonElement): JsonElement {
         val root = element as? JsonObject ?: return element
