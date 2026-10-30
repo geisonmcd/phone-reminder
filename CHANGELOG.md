@@ -1,5 +1,6 @@
 # Changelog
 
+- 2026-10-30 — Fixed the adaptive launcher icon so Samsung/One UI shows the phone-and-bell artwork on navy: transparent foreground in the safe zone, monochrome layer, and legacy density mipmaps; removed the unused cream-era bell vector.
 - 2026-10-23 — Uploaded the Drive sync idempotency fix to Play internal testing as 1.0.39 (42), with Firebase Crashlytics config and mapping upload in CI.
 - 2026-10-23 — Fixed Drive sync always showing "edited on both" for reminders with trailing spaces on inner lines: the Drive file now keeps reminder text exactly and sync compares text ignoring whitespace-only differences.
 - 2026-10-23 — Uploaded two-way Google Drive sync to Play internal testing as 1.0.38 (41), with Firebase Crashlytics config and mapping upload in CI.
