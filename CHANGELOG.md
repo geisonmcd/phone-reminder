@@ -1,5 +1,6 @@
 # Changelog
 
+- 2026-10-30 — Uploaded the launcher icon fix to Play internal testing as 1.0.40 (43), with Firebase Crashlytics config and mapping upload in CI.
 - 2026-10-30 — Updated Play internal-testing release notes for the launcher icon fix (phone and bell on navy, updates on Samsung/One UI after reinstall).
 - 2026-10-30 — Fixed the adaptive launcher icon so Samsung/One UI shows the phone-and-bell artwork on navy: transparent foreground in the safe zone, monochrome layer, and legacy density mipmaps; removed the unused cream-era bell vector.
 - 2026-10-23 — Uploaded the Drive sync idempotency fix to Play internal testing as 1.0.39 (42), with Firebase Crashlytics config and mapping upload in CI.
