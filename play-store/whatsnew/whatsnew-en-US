@@ -1,5 +1,3 @@
-Google Drive backup is now two-way sync.
+Fixed the app icon.
 
-- New Google Drive card on the home screen shows when you last synced and what differs between this phone and Drive
-- Sync now merges both sides: newest edits win and deletions carry over
-- Drive backup and import moved from Settings into the new card; text export/import stays in Settings
+The launcher now shows a phone and bell on a navy background. After you reinstall, the icon updates correctly on Samsung and One UI.
