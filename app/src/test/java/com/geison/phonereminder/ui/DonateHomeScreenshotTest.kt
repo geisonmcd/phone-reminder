@@ -9,6 +9,7 @@ import com.geison.phonereminder.data.DriveSync
 import com.geison.phonereminder.data.ReminderItem
 import com.geison.phonereminder.data.ScheduleSettings
 import com.github.takahirom.roborazzi.captureRoboImage
+import java.io.File
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -24,6 +25,20 @@ class DonateHomeScreenshotTest {
     @Before
     fun enableRoborazziRecord() {
         System.setProperty("roborazzi.test.record", "true")
+    }
+
+    private fun roborazziPreviewPath(fileName: String): String {
+        File("build/roborazzi-previews").mkdirs()
+        return "build/roborazzi-previews/$fileName"
+    }
+
+    private fun mirrorPreviewToWorkspace(fileName: String) {
+        val workspaceDir = File("/workspace")
+        if (!workspaceDir.isDirectory) return
+        val source = File("build/roborazzi-previews", fileName)
+        if (source.isFile) {
+            source.copyTo(File(workspaceDir, fileName), overwrite = true)
+        }
     }
 
     private val sampleReminders = listOf(
@@ -79,7 +94,8 @@ class DonateHomeScreenshotTest {
     @Test
     @Config(qualifiers = "w412dp-h915dp-xhdpi")
     fun captureHomeScreenPreview() {
-        captureRoboImage(filePath = "/workspace/donate_home_preview.png") {
+        val fileName = "donate_home_preview.png"
+        captureRoboImage(filePath = roborazziPreviewPath(fileName)) {
             ReminderPreviewTheme {
                 HomeScreen(
                     reminderCount = sampleReminders.size,
@@ -95,12 +111,14 @@ class DonateHomeScreenshotTest {
                 )
             }
         }
+        mirrorPreviewToWorkspace(fileName)
     }
 
     @Test
     @Config(qualifiers = "w412dp-h915dp-xhdpi")
     fun captureHomeNotConnectedPreview() {
-        captureRoboImage(filePath = "/workspace/donate_home_notconnected.png") {
+        val fileName = "donate_home_notconnected.png"
+        captureRoboImage(filePath = roborazziPreviewPath(fileName)) {
             ReminderPreviewTheme {
                 HomeScreen(
                     reminderCount = sampleReminders.size,
@@ -116,12 +134,14 @@ class DonateHomeScreenshotTest {
                 )
             }
         }
+        mirrorPreviewToWorkspace(fileName)
     }
 
     @Test
     @Config(qualifiers = "w412dp-h120dp-xhdpi")
     fun captureDriveBeerRowPreview() {
-        captureRoboImage(filePath = "/workspace/donate_row_preview.png") {
+        val fileName = "donate_row_preview.png"
+        captureRoboImage(filePath = roborazziPreviewPath(fileName)) {
             ReminderPreviewTheme {
                 HomeDriveBeerRow(
                     driveSyncState = driveSyncDifferencesState,
@@ -133,5 +153,6 @@ class DonateHomeScreenshotTest {
                 )
             }
         }
+        mirrorPreviewToWorkspace(fileName)
     }
 }
