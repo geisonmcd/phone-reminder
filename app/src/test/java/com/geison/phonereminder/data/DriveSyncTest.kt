@@ -66,7 +66,7 @@ class DriveSyncTest {
         val local = state(item("a", "Phone edit", updated = now - 2 * day))
         val remote = state(item("a", "Drive edit", updated = now - day))
 
-        assertEquals(DriveSync.Differences(editedOnBoth = 1), DriveSync.diff(local, remote))
+        assertEquals(DriveSync.Differences(editedOnDrive = 1), DriveSync.diff(local, remote))
         assertEquals("Drive edit", DriveSync.merge(local, remote, now).reminders.single().text)
     }
 

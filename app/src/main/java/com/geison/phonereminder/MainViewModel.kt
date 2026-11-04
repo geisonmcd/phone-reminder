@@ -51,6 +51,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val mutableDrivePhase = MutableStateFlow<DrivePhase>(DrivePhase.NotConnected)
     private val mutableRemoteSnapshot = MutableStateFlow<RemoteSnapshot?>(null)
     private val mutableLastSyncAt = MutableStateFlow(ReminderStorage.loadLastDriveSyncAt(application))
+    private val mutableDriveSyncBaseline = MutableStateFlow(ReminderStorage.loadDriveSyncBaseline(application))
     private var pendingGoogleDriveConsentAction: GoogleDriveAction? = null
     private var lastAutomaticCompareAt = 0L
     private var scheduleNotificationsJob: Job? = null
@@ -65,7 +66,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         mutableDrivePhase,
         mutableRemoteSnapshot,
         mutableLastSyncAt,
-    ) { local, phase, snapshot, lastSyncAt ->
+        mutableDriveSyncBaseline,
+    ) { local, phase, snapshot, lastSyncAt, baseline ->
         val status = when (phase) {
             DrivePhase.NotConnected -> DriveSyncStatus.NotConnected
             DrivePhase.Checking -> DriveSyncStatus.Checking
@@ -75,7 +77,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 DriveSyncStatus.NotConnected
             } else {
                 DriveSyncStatus.Compared(
-                    differences = DriveSync.diff(local, snapshot.resolve(local)),
+                    differences = DriveSync.diff(
+                        local = local,
+                        remote = snapshot.resolve(local),
+                        lastSyncAtEpochMillis = lastSyncAt,
+                        baseline = baseline,
+                    ),
                     hasRemoteFile = snapshot.parsed != null,
                 )
             }
@@ -373,25 +380,38 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             val now = System.currentTimeMillis()
             val remote = RemoteSnapshot.from(remoteFile).resolve(localBefore)
             val merged = DriveSync.merge(localBefore, remote, now)
-            val content = ReminderExchange.export(merged, includeSyncMetadata = true)
+            val localBeforeUpload = state.value
+            val stateToUpload = if (localBeforeUpload == localBefore) {
+                merged
+            } else {
+                DriveSync.merge(localBeforeUpload, merged, now)
+            }
+            val content = ReminderExchange.export(stateToUpload, includeSyncMetadata = true)
             googleDriveManager.backup(accessToken, content)
-            Triple(localBefore, merged, content)
+            Pair(localBefore, stateToUpload)
         }.fold(
-            onSuccess = { (localBefore, merged, content) ->
+            onSuccess = { (localBefore, stateToUpload) ->
                 val now = System.currentTimeMillis()
-                val localNow = state.value
-                // Edits made while uploading are kept; the next sync sends them to Drive.
-                val finalState = if (localNow == localBefore) merged else DriveSync.merge(localNow, merged, now)
+                val localAfterUpload = state.value
+                val finalState = if (localAfterUpload == localBefore) {
+                    stateToUpload
+                } else {
+                    DriveSync.merge(localAfterUpload, stateToUpload, now)
+                }
                 repository.replaceWithSyncedState(finalState)
                 ReminderStorage.saveLastDriveSyncAt(getApplication(), now)
+                val baseline = DriveSync.baselineFrom(finalState)
+                ReminderStorage.saveDriveSyncBaseline(getApplication(), baseline)
                 mutableLastSyncAt.value = now
+                mutableDriveSyncBaseline.value = baseline
+                val snapshotContent = ReminderExchange.export(finalState, includeSyncMetadata = true)
                 mutableRemoteSnapshot.value = RemoteSnapshot(
-                    parsed = ReminderExchange.parse(content),
+                    parsed = ReminderExchange.parse(snapshotContent),
                     legacyTimestampMillis = now,
                 )
                 mutableDrivePhase.value = DrivePhase.Ready
                 Diagnostics.setKey("reminder_count", finalState.reminders.size)
-                Diagnostics.setKey("last_google_drive_sync_count", merged.reminders.size)
+                Diagnostics.setKey("last_google_drive_sync_count", finalState.reminders.size)
                 scheduleNotifications()
             },
             onFailure = { error ->

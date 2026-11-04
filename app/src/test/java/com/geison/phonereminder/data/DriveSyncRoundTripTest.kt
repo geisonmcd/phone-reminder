@@ -127,20 +127,24 @@ class DriveSyncRoundTripTest {
             },
         )
 
-        assertEquals(DriveSync.Differences(editedOnBoth = 1), DriveSync.diff(local, remote))
+        assertEquals(DriveSync.Differences(editedOnDrive = 1), DriveSync.diff(local, remote))
         val merged = DriveSync.merge(local, remote, now)
         assertEquals(remote.reminders.first { it.id == "zak" }.text, merged.reminders.first { it.id == "zak" }.text)
     }
 
     @Test
     fun cadenceChangeIsStillADifference() {
+        val baseline = DriveSync.baselineFrom(local)
         val remote = local.copy(
             reminders = local.reminders.map {
                 if (it.id == "gym") it.copy(schedule = it.schedule.copy(cadence = ScheduleCadence.WEEKLY)) else it
             },
         )
 
-        assertEquals(DriveSync.Differences(editedOnBoth = 1), DriveSync.diff(local, remote))
+        assertEquals(
+            DriveSync.Differences(editedOnDrive = 1),
+            DriveSync.diff(local, remote, lastSyncAtEpochMillis = now, baseline = baseline),
+        )
     }
 
     @Test

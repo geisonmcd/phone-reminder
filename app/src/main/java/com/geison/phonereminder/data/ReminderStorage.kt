@@ -17,6 +17,7 @@ object ReminderStorage {
     private const val PREFS_NAME = "phone_reminder_prefs"
     private const val STATE_KEY = "app_state"
     private const val LAST_DRIVE_SYNC_KEY = "last_drive_sync_at"
+    private const val DRIVE_SYNC_BASELINE_KEY = "drive_sync_baseline"
 
     private val json = Json {
         ignoreUnknownKeys = true
@@ -56,6 +57,21 @@ object ReminderStorage {
     fun saveLastDriveSyncAt(context: Context, epochMillis: Long) {
         val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         prefs.edit().putLong(LAST_DRIVE_SYNC_KEY, epochMillis).apply()
+    }
+
+    fun loadDriveSyncBaseline(context: Context): DriveSync.Baseline? {
+        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        val raw = prefs.getString(DRIVE_SYNC_BASELINE_KEY, null) ?: return null
+        return runCatching {
+            json.decodeFromString<DriveSync.Baseline>(raw)
+        }.getOrNull()
+    }
+
+    fun saveDriveSyncBaseline(context: Context, baseline: DriveSync.Baseline) {
+        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        prefs.edit()
+            .putString(DRIVE_SYNC_BASELINE_KEY, json.encodeToString(baseline))
+            .apply()
     }
 
     /** Decodes stored JSON; exposed for tests of the migration of pre-sync data. */
