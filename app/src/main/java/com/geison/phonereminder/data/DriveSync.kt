@@ -1,5 +1,6 @@
 package com.geison.phonereminder.data
 
+import kotlinx.serialization.Serializable
 import java.util.UUID
 
 /**
@@ -20,9 +21,17 @@ import java.util.UUID
  */
 object DriveSync {
 
+    /** Per-reminder content fingerprints captured after the last successful two-way sync. */
+    @Serializable
+    data class Baseline(
+        val reminderFingerprints: Map<String, String> = emptyMap(),
+    )
+
     data class Differences(
         val onlyOnPhone: Int = 0,
         val onlyOnDrive: Int = 0,
+        val editedOnPhone: Int = 0,
+        val editedOnDrive: Int = 0,
         val editedOnBoth: Int = 0,
         /** Reminders on the phone that Drive has deleted (sync will delete them on the phone). */
         val deletedOnDrive: Int = 0,
@@ -31,8 +40,8 @@ object DriveSync {
         val settingsDiffer: Boolean = false,
     ) {
         val total: Int
-            get() = onlyOnPhone + onlyOnDrive + editedOnBoth + deletedOnDrive + deletedOnPhone +
-                (if (settingsDiffer) 1 else 0)
+            get() = onlyOnPhone + onlyOnDrive + editedOnPhone + editedOnDrive + editedOnBoth +
+                deletedOnDrive + deletedOnPhone + (if (settingsDiffer) 1 else 0)
 
         val isInSync: Boolean
             get() = total == 0
@@ -87,8 +96,31 @@ object DriveSync {
         ).normalized()
     }
 
+    fun baselineFrom(state: AppState): Baseline {
+        return Baseline(reminderFingerprints = state.reminders.associate { it.id to contentFingerprint(it) })
+    }
+
+    internal fun contentFingerprint(item: ReminderItem): String {
+        val schedule = normalizeSchedule(item.schedule)
+        val daysKey = schedule.reminderDays?.sorted()?.joinToString(",") { it.name }.orEmpty()
+        return buildString {
+            append(normalizeText(item.text))
+            append('\u0000')
+            append(schedule.notificationsPerDay)
+            append('\u0000')
+            append(schedule.cadence.name)
+            append('\u0000')
+            append(daysKey)
+        }
+    }
+
     /** Compares without changing anything. [remote] is null when there is no Drive file yet. */
-    fun diff(local: AppState, remote: AppState?): Differences {
+    fun diff(
+        local: AppState,
+        remote: AppState?,
+        lastSyncAtEpochMillis: Long? = null,
+        baseline: Baseline? = null,
+    ): Differences {
         val remoteState = remote ?: AppState(
             notificationWindow = local.notificationWindow,
             reminderDays = local.reminderDays,
@@ -100,6 +132,8 @@ object DriveSync {
 
         var onlyOnPhone = 0
         var onlyOnDrive = 0
+        var editedOnPhone = 0
+        var editedOnDrive = 0
         var editedOnBoth = 0
         var deletedOnDrive = 0
         var deletedOnPhone = 0
@@ -120,7 +154,13 @@ object DriveSync {
                 l != null && r != null -> when {
                     deletionWins && tomb === remoteTomb -> deletedOnDrive++
                     deletionWins -> deletedOnPhone++
-                    !sameContent(l, r) -> editedOnBoth++
+                    !sameContent(l, r) -> when (
+                        classifyContentEdit(l, r, baseline, lastSyncAtEpochMillis)
+                    ) {
+                        ContentEditKind.PHONE -> editedOnPhone++
+                        ContentEditKind.DRIVE -> editedOnDrive++
+                        ContentEditKind.BOTH -> editedOnBoth++
+                    }
                 }
             }
         }
@@ -133,11 +173,61 @@ object DriveSync {
         return Differences(
             onlyOnPhone = onlyOnPhone,
             onlyOnDrive = onlyOnDrive,
+            editedOnPhone = editedOnPhone,
+            editedOnDrive = editedOnDrive,
             editedOnBoth = editedOnBoth,
             deletedOnDrive = deletedOnDrive,
             deletedOnPhone = deletedOnPhone,
             settingsDiffer = settingsDiffer,
         )
+    }
+
+    private enum class ContentEditKind { PHONE, DRIVE, BOTH }
+
+    private fun classifyContentEdit(
+        local: ReminderItem,
+        remote: ReminderItem,
+        baseline: Baseline?,
+        lastSyncAtEpochMillis: Long?,
+    ): ContentEditKind {
+        val baseFingerprint = baseline?.reminderFingerprints?.get(local.id)
+        if (baseFingerprint != null) {
+            val localChanged = contentFingerprint(local) != baseFingerprint
+            val remoteChanged = contentFingerprint(remote) != baseFingerprint
+            return when {
+                localChanged && remoteChanged -> ContentEditKind.BOTH
+                localChanged -> ContentEditKind.PHONE
+                remoteChanged -> ContentEditKind.DRIVE
+                else -> classifyByTimestamps(local, remote, lastSyncAtEpochMillis)
+            }
+        }
+        return classifyByTimestamps(local, remote, lastSyncAtEpochMillis)
+    }
+
+    /**
+     * Used when there is no per-item baseline yet (upgrade / never synced). Never returns BOTH
+     * unless both sides clearly changed after [lastSyncAtEpochMillis].
+     */
+    private fun classifyByTimestamps(
+        local: ReminderItem,
+        remote: ReminderItem,
+        lastSyncAtEpochMillis: Long?,
+    ): ContentEditKind {
+        val lastSync = lastSyncAtEpochMillis
+        if (lastSync != null) {
+            val localSinceSync = local.updatedAtEpochMillis > lastSync
+            val remoteSinceSync = remote.updatedAtEpochMillis > lastSync
+            when {
+                localSinceSync && remoteSinceSync -> return ContentEditKind.BOTH
+                localSinceSync -> return ContentEditKind.PHONE
+                remoteSinceSync -> return ContentEditKind.DRIVE
+            }
+        }
+        return when {
+            local.updatedAtEpochMillis > remote.updatedAtEpochMillis -> ContentEditKind.PHONE
+            remote.updatedAtEpochMillis > local.updatedAtEpochMillis -> ContentEditKind.DRIVE
+            else -> ContentEditKind.PHONE
+        }
     }
 
     /** Two-way merge. The result is written to the phone and uploaded to Drive. */

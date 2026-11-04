@@ -54,6 +54,14 @@
         <item quantity="one">%1$d edited on both</item>
         <item quantity="other">%1$d edited on both</item>
     </plurals>
+    <plurals name="drive_sync_edited_on_phone">
+        <item quantity="one">%1$d changed on phone</item>
+        <item quantity="other">%1$d changed on phone</item>
+    </plurals>
+    <plurals name="drive_sync_edited_on_drive">
+        <item quantity="one">%1$d changed on Drive</item>
+        <item quantity="other">%1$d changed on Drive</item>
+    </plurals>
     <plurals name="drive_sync_deleted_on_drive">
         <item quantity="one">%1$d deleted on Drive</item>
         <item quantity="other">%1$d deleted on Drive</item>

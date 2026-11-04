@@ -62,6 +62,16 @@
         <item quantity="many">%1$d editados nos dois</item>
         <item quantity="other">%1$d editados nos dois</item>
     </plurals>
+    <plurals name="drive_sync_edited_on_phone">
+        <item quantity="one">%1$d alterado no celular</item>
+        <item quantity="many">%1$d alterados no celular</item>
+        <item quantity="other">%1$d alterados no celular</item>
+    </plurals>
+    <plurals name="drive_sync_edited_on_drive">
+        <item quantity="one">%1$d alterado no Drive</item>
+        <item quantity="many">%1$d alterados no Drive</item>
+        <item quantity="other">%1$d alterados no Drive</item>
+    </plurals>
     <plurals name="drive_sync_deleted_on_drive">
         <item quantity="one">%1$d excluído no Drive</item>
         <item quantity="many">%1$d excluídos no Drive</item>

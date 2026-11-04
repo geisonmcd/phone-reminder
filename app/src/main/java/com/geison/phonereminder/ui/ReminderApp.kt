@@ -1395,6 +1395,21 @@ internal fun driveSyncCompactStatusText(
                         stringResource(R.string.drive_sync_last_sync, formatCreatedAt(lastSync))
                     } ?: stringResource(R.string.drive_sync_status_synced)
                 }
+                differences.editedOnPhone == differences.total -> pluralStringResource(
+                    R.plurals.drive_sync_edited_on_phone,
+                    differences.editedOnPhone,
+                    differences.editedOnPhone,
+                )
+                differences.editedOnDrive == differences.total -> pluralStringResource(
+                    R.plurals.drive_sync_edited_on_drive,
+                    differences.editedOnDrive,
+                    differences.editedOnDrive,
+                )
+                differences.editedOnBoth == differences.total -> pluralStringResource(
+                    R.plurals.drive_sync_edited_on_both,
+                    differences.editedOnBoth,
+                    differences.editedOnBoth,
+                )
                 else -> pluralStringResource(
                     R.plurals.drive_sync_status_differences_short,
                     differences.total,
