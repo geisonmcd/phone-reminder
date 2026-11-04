@@ -3,7 +3,7 @@
 Expected Play Console answers based on the current app code and Firebase Crashlytics:
 
 - Personal info: No
-- Financial info: No
+- Financial info: Purchase history (optional tip-jar donations via Google Play Billing; collected and processed by Google Play as part of the billing system—the app does not store purchase tokens or payment details locally or on developer servers)
 - Health and fitness: No
 - Messages: No
 - Photos and videos: No
@@ -16,6 +16,7 @@ Expected Play Console answers based on the current app code and Firebase Crashly
 
 Collection:
 - Reminder content and schedule data are not sent off device unless the user turns on the optional Google Drive backup.
+- Optional in-app donations (“Buy me a beer”) use Google Play Billing. When a user chooses to donate, Google Play processes the payment. Play Console may require declaring **Financial info → Purchase history** for this flow; the app does not persist purchase tokens or payment card data.
 - Google Drive backup and sync (optional, user-initiated): the app uploads a sync file (`Smart Random Reminder Backup.txt`) with reminder text and settings directly from the device to the user's own Google Drive via HTTPS, using the `drive.file` scope (only files the app creates). The developer has no server and never receives this data, but Play treats any transmission off device as collection, so declare it: Other user-generated content, collected, optional, purpose App functionality, encrypted in transit, user can delete it (delete the file in Google Drive or revoke the app's access in their Google Account). The app does not read or store the Google account email or profile.
 - Firebase Crashlytics collects crash reports, stack traces, relevant app state, device metadata, app version, and a Crashlytics installation UUID for stability monitoring.
 - Developer-defined crash report keys/logs include technical metadata only, such as reminder count, scheduler state, notification permission state, import/export failure state, and app lifecycle breadcrumbs. Do not log reminder text, imported file contents, exported file contents, account identifiers, advertising identifiers, or precise location.
@@ -34,3 +35,4 @@ Permissions used:
 - `POST_NOTIFICATIONS`
 - `RECEIVE_BOOT_COMPLETED`
 - `INTERNET`
+- `com.android.vending.BILLING` (merged from the Google Play Billing Library for optional in-app donations)

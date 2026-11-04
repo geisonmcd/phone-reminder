@@ -42,6 +42,11 @@
         <item quantity="many">%1$d diferenças: %2$s</item>
         <item quantity="other">%1$d diferenças: %2$s</item>
     </plurals>
+    <plurals name="drive_sync_status_differences_short">
+        <item quantity="one">%1$d diferença</item>
+        <item quantity="many">%1$d diferenças</item>
+        <item quantity="other">%1$d diferenças</item>
+    </plurals>
     <plurals name="drive_sync_only_on_phone">
         <item quantity="one">%1$d só no celular</item>
         <item quantity="many">%1$d só no celular</item>
@@ -81,6 +86,11 @@
     <string name="screen_title_edit_reminder">Editar lembrete</string>
 
     <string name="action_open_settings">Abrir configurações</string>
+    <string name="action_donate">Doar</string>
+    <string name="donation_unavailable">Doações não estão disponíveis no momento.</string>
+    <string name="donation_thank_you">Obrigado pela doação!</string>
+    <string name="donation_pending">Seu pagamento está pendente. Obrigado pelo apoio!</string>
+    <string name="donation_error">Algo deu errado. Tente novamente mais tarde.</string>
     <string name="action_add_reminder">Adicionar lembrete</string>
     <string name="action_back_to_reminders">Voltar para lembretes</string>
     <string name="action_back_to_config">Voltar para configurações</string>
@@ -99,11 +109,14 @@
     <string name="drive_sync_last_sync">Última sincronização: %1$s</string>
     <string name="drive_sync_never_synced">Nunca sincronizado com o Google Drive.</string>
     <string name="drive_sync_status_not_connected">Não conectado. Conecte para fazer backup e sincronizar seus lembretes.</string>
+    <string name="drive_sync_status_not_connected_short">Não conectado</string>
+    <string name="drive_sync_status_no_remote_file_short">Sem cópia no Drive</string>
     <string name="drive_sync_status_checking">Verificando o Google Drive…</string>
     <string name="drive_sync_status_syncing">Sincronizando…</string>
     <string name="drive_sync_status_synced">Sincronizado</string>
     <string name="drive_sync_settings_differ">configurações diferentes</string>
     <string name="action_drive_connect">Conectar Google Drive</string>
+    <string name="action_drive_connect_short">Conectar</string>
     <string name="action_drive_sync_now">Sincronizar agora</string>
     <string name="notification_action_less_often">Menos vezes</string>
     <string name="notification_action_more_often">Mais vezes</string>

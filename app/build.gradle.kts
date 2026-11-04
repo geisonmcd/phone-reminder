@@ -4,6 +4,7 @@ plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
     id("org.jetbrains.kotlin.plugin.serialization")
+    id("io.github.takahirom.roborazzi")
 }
 
 if (file("google-services.json").exists()) {
@@ -132,6 +133,12 @@ android {
             excludes += "/META-INF/DEPENDENCIES"
         }
     }
+
+    testOptions {
+        unitTests {
+            isIncludeAndroidResources = true
+        }
+    }
 }
 
 dependencies {
@@ -155,9 +162,15 @@ dependencies {
     implementation("com.google.firebase:firebase-crashlytics")
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.3")
     implementation("com.google.android.gms:play-services-auth:21.4.0")
+    implementation("com.android.billingclient:billing:8.3.0")
     implementation("androidx.lifecycle:lifecycle-viewmodel-ktx:2.8.3")
 
     debugImplementation("androidx.compose.ui:ui-tooling")
     testImplementation("junit:junit:4.13.2")
     testImplementation("com.squareup.okhttp3:mockwebserver:4.12.0")
+    testImplementation("org.robolectric:robolectric:4.17")
+    testImplementation("androidx.compose.ui:ui-test-junit4")
+    testImplementation("io.github.takahirom.roborazzi:roborazzi:1.37.0")
+    testImplementation("io.github.takahirom.roborazzi:roborazzi-compose:1.37.0")
+    testImplementation("io.github.takahirom.roborazzi:roborazzi-junit-rule:1.37.0")
 }

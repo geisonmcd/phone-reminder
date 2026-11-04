@@ -4,6 +4,7 @@ plugins {
     id("org.jetbrains.kotlin.plugin.serialization") version "1.9.24" apply false
     id("com.google.gms.google-services") version "4.4.4" apply false
     id("com.google.firebase.crashlytics") version "3.0.6" apply false
+    id("io.github.takahirom.roborazzi") version "1.37.0" apply false
 }
 
 subprojects {

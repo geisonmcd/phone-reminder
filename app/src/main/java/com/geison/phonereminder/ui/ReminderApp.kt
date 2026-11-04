@@ -2,6 +2,8 @@ package com.geison.phonereminder.ui
 
 import android.content.Intent
 import android.provider.Settings
+import android.widget.Toast
+import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.IntentSenderRequest
@@ -34,6 +36,9 @@ import androidx.compose.material.icons.outlined.DeleteOutline
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.Save
 import androidx.compose.material.icons.outlined.Settings
+import androidx.compose.material.icons.outlined.AttachMoney
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material.icons.outlined.Cloud
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -81,6 +86,8 @@ import com.geison.phonereminder.DriveSyncUiState
 import com.geison.phonereminder.ImportPreviewResult
 import com.geison.phonereminder.MainViewModel
 import com.geison.phonereminder.R
+import com.geison.phonereminder.billing.DonationBillingController
+import com.geison.phonereminder.billing.DonationPurchaseEvent
 import com.geison.phonereminder.data.MAX_NOTIFICATIONS_PER_DAY
 import com.geison.phonereminder.data.NotificationWindowSettings
 import com.geison.phonereminder.data.ReminderItem
@@ -134,10 +141,27 @@ private val ReminderColorScheme = lightColorScheme(
 )
 
 @Composable
+internal fun ReminderPreviewTheme(content: @Composable () -> Unit) {
+    MaterialTheme(colorScheme = ReminderColorScheme) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(
+                    Brush.verticalGradient(
+                        colors = listOf(AppBackgroundTop, AppBackgroundBottom),
+                    ),
+                ),
+            content = { content() },
+        )
+    }
+}
+
+@Composable
 fun ReminderApp(
     viewModel: MainViewModel,
     openReminderId: String? = null,
     onOpenReminderHandled: () -> Unit = {},
+    donationBilling: DonationBillingController,
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     var reminderFilter by rememberSaveable { mutableStateOf("") }
@@ -147,6 +171,7 @@ fun ReminderApp(
     var showingPrivacyPolicy by rememberSaveable { mutableStateOf(false) }
     var configMessage by rememberSaveable { mutableStateOf<String?>(null) }
     var pendingImport by remember { mutableStateOf<ImportPreviewResult.Ready?>(null) }
+    var donationBusy by remember { mutableStateOf(false) }
     val googleDriveConsentRequest by viewModel.googleDriveConsentRequest.collectAsStateWithLifecycle()
     val driveSyncState by viewModel.driveSyncUiState.collectAsStateWithLifecycle()
     val context = LocalContext.current
@@ -196,6 +221,43 @@ fun ReminderApp(
             )
         }.onFailure { error -> viewModel.onGoogleDriveConsentLaunchFailed(error) }
     }
+
+    LaunchedEffect(donationBilling) {
+        donationBilling.start { event ->
+            donationBusy = false
+            when (event) {
+                DonationPurchaseEvent.Cancelled -> Unit
+                DonationPurchaseEvent.ThankYou -> {
+                    Toast.makeText(
+                        context,
+                        context.getString(R.string.donation_thank_you),
+                        Toast.LENGTH_SHORT,
+                    ).show()
+                }
+                DonationPurchaseEvent.Pending -> {
+                    Toast.makeText(
+                        context,
+                        context.getString(R.string.donation_pending),
+                        Toast.LENGTH_SHORT,
+                    ).show()
+                }
+                DonationPurchaseEvent.Unavailable -> {
+                    Toast.makeText(
+                        context,
+                        context.getString(R.string.donation_unavailable),
+                        Toast.LENGTH_SHORT,
+                    ).show()
+                }
+                is DonationPurchaseEvent.Failed -> {
+                    val message = event.message?.takeIf { it.isNotBlank() }
+                        ?: context.getString(R.string.donation_error)
+                    Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
+    }
+
+    val activity = context as? ComponentActivity
 
     val isCreatingNewReminder = selectedReminderId == NEW_REMINDER_ID
     val selectedReminder = if (isCreatingNewReminder) {
@@ -343,6 +405,14 @@ fun ReminderApp(
                             configMessage = null
                             showingConfig = true
                         },
+                        onBuyBeer = {
+                            activity?.let { host ->
+                                donationBusy = true
+                                donationBilling.consumeUnconsumedPurchases()
+                                donationBilling.purchaseDonation(host)
+                            }
+                        },
+                        donationBusy = donationBusy,
                         onNewReminder = {
                             newReminderCreatedAt = System.currentTimeMillis()
                             selectedReminderId = NEW_REMINDER_ID
@@ -354,7 +424,6 @@ fun ReminderApp(
                     )
                 }
             }
-
             pendingImport?.let { importPreview ->
                 AlertDialog(
                     onDismissRequest = { pendingImport = null },
@@ -395,17 +464,20 @@ fun ReminderApp(
                     },
                 )
             }
+
         }
     }
 }
 
 @Composable
-private fun HomeScreen(
+internal fun HomeScreen(
     reminderCount: Int,
     reminders: List<ReminderItem>,
     reminderFilter: String,
     onFilterChange: (String) -> Unit,
     onConfig: () -> Unit,
+    onBuyBeer: () -> Unit = {},
+    donationBusy: Boolean = false,
     onNewReminder: () -> Unit,
     onEdit: (String) -> Unit,
     driveSyncState: DriveSyncUiState,
@@ -442,14 +514,14 @@ private fun HomeScreen(
             }
         },
     ) {
-        if (driveSyncState.isEnabled) {
-            item {
-                DriveSyncCard(
-                    state = driveSyncState,
-                    onConnect = onDriveConnect,
-                    onSyncNow = onDriveSyncNow,
-                )
-            }
+        item {
+            HomeDriveBeerRow(
+                driveSyncState = driveSyncState,
+                donationBusy = donationBusy,
+                onConnect = onDriveConnect,
+                onSyncNow = onDriveSyncNow,
+                onBuyBeer = onBuyBeer,
+            )
         }
 
         item {
@@ -1170,101 +1242,164 @@ private fun BackupActionsCard(
 }
 
 @Composable
-private fun DriveSyncCard(
+internal fun HomeDriveBeerRow(
+    driveSyncState: DriveSyncUiState,
+    donationBusy: Boolean,
+    onConnect: () -> Unit,
+    onSyncNow: () -> Unit,
+    onBuyBeer: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Row(
+        modifier = modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        if (driveSyncState.isEnabled) {
+            CompactDriveSyncCard(
+                modifier = Modifier.weight(1f),
+                state = driveSyncState,
+                onConnect = onConnect,
+                onSyncNow = onSyncNow,
+            )
+        } else {
+            Spacer(modifier = Modifier.weight(1f))
+        }
+        DonateButton(
+            busy = donationBusy,
+            onClick = onBuyBeer,
+        )
+    }
+}
+
+@Composable
+private fun CompactDriveSyncCard(
     state: DriveSyncUiState,
     onConnect: () -> Unit,
     onSyncNow: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     val status = state.status
     val busy = status == DriveSyncStatus.Checking || status == DriveSyncStatus.Syncing
-    AppCard(containerColor = PrimaryCardColor) {
-        Text(
-            text = stringResource(R.string.drive_sync_title),
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.SemiBold,
-        )
-        Spacer(modifier = Modifier.height(8.dp))
-        Text(
-            text = state.lastSyncAtEpochMillis?.let { lastSync ->
-                stringResource(R.string.drive_sync_last_sync, formatCreatedAt(lastSync))
-            } ?: stringResource(R.string.drive_sync_never_synced),
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-        Spacer(modifier = Modifier.height(12.dp))
-        InfoPill(text = driveSyncStatusText(status))
-        Spacer(modifier = Modifier.height(12.dp))
-        if (status == DriveSyncStatus.NotConnected) {
-            Button(
-                onClick = onConnect,
-                modifier = Modifier.fillMaxWidth(),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    contentColor = MaterialTheme.colorScheme.onPrimary,
-                ),
-            ) {
-                Text(stringResource(R.string.action_drive_connect))
+    Card(
+        modifier = modifier,
+        shape = AppCardShape,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.55f)),
+        colors = CardDefaults.cardColors(containerColor = PrimaryCardColor),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            Icon(
+                imageVector = Icons.Outlined.Cloud,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(22.dp),
+            )
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = stringResource(R.string.drive_sync_title),
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.SemiBold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Text(
+                    text = driveSyncCompactStatusText(status, state.lastSyncAtEpochMillis),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
             }
-        } else {
-            Button(
-                onClick = onSyncNow,
-                enabled = !busy,
-                modifier = Modifier.fillMaxWidth(),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    contentColor = MaterialTheme.colorScheme.onPrimary,
-                ),
-            ) {
-                Text(stringResource(R.string.action_drive_sync_now))
+            if (busy) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(22.dp),
+                    strokeWidth = 2.dp,
+                )
+            } else {
+                TextButton(
+                    onClick = if (status == DriveSyncStatus.NotConnected) onConnect else onSyncNow,
+                    enabled = !busy,
+                ) {
+                    Text(
+                        text = if (status == DriveSyncStatus.NotConnected) {
+                            stringResource(R.string.action_drive_connect_short)
+                        } else {
+                            stringResource(R.string.action_drive_sync_now)
+                        },
+                    )
+                }
             }
         }
     }
 }
 
 @Composable
-private fun driveSyncStatusText(status: DriveSyncStatus): String {
+private fun DonateButton(
+    busy: Boolean,
+    onClick: () -> Unit,
+) {
+    val buttonSize = 60.dp
+    Card(
+        modifier = Modifier
+            .size(buttonSize)
+            .clickable(enabled = !busy, onClick = onClick),
+        shape = AppCardShape,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.55f)),
+        colors = CardDefaults.cardColors(containerColor = PrimaryCardColor),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+    ) {
+        Box(
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = Alignment.Center,
+        ) {
+            if (busy) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(24.dp),
+                    strokeWidth = 2.dp,
+                )
+            } else {
+                Icon(
+                    imageVector = Icons.Outlined.AttachMoney,
+                    contentDescription = stringResource(R.string.action_donate),
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(28.dp),
+                )
+            }
+        }
+    }
+}
+
+@Composable
+internal fun driveSyncCompactStatusText(
+    status: DriveSyncStatus,
+    lastSyncAtEpochMillis: Long?,
+): String {
     return when (status) {
-        DriveSyncStatus.NotConnected -> stringResource(R.string.drive_sync_status_not_connected)
+        DriveSyncStatus.NotConnected -> stringResource(R.string.drive_sync_status_not_connected_short)
         DriveSyncStatus.Checking -> stringResource(R.string.drive_sync_status_checking)
         DriveSyncStatus.Syncing -> stringResource(R.string.drive_sync_status_syncing)
         is DriveSyncStatus.Error -> status.message
         is DriveSyncStatus.Compared -> {
             val differences = status.differences
             when {
-                !status.hasRemoteFile -> pluralStringResource(
-                    R.plurals.drive_sync_status_no_remote_file,
-                    differences.onlyOnPhone,
-                    differences.onlyOnPhone,
-                )
-                differences.isInSync -> stringResource(R.string.drive_sync_status_synced)
-                else -> {
-                    val parts = buildList {
-                        if (differences.onlyOnPhone > 0) {
-                            add(pluralStringResource(R.plurals.drive_sync_only_on_phone, differences.onlyOnPhone, differences.onlyOnPhone))
-                        }
-                        if (differences.onlyOnDrive > 0) {
-                            add(pluralStringResource(R.plurals.drive_sync_only_on_drive, differences.onlyOnDrive, differences.onlyOnDrive))
-                        }
-                        if (differences.editedOnBoth > 0) {
-                            add(pluralStringResource(R.plurals.drive_sync_edited_on_both, differences.editedOnBoth, differences.editedOnBoth))
-                        }
-                        if (differences.deletedOnDrive > 0) {
-                            add(pluralStringResource(R.plurals.drive_sync_deleted_on_drive, differences.deletedOnDrive, differences.deletedOnDrive))
-                        }
-                        if (differences.deletedOnPhone > 0) {
-                            add(pluralStringResource(R.plurals.drive_sync_deleted_on_phone, differences.deletedOnPhone, differences.deletedOnPhone))
-                        }
-                        if (differences.settingsDiffer) {
-                            add(stringResource(R.string.drive_sync_settings_differ))
-                        }
-                    }
-                    pluralStringResource(
-                        R.plurals.drive_sync_status_differences,
-                        differences.total,
-                        differences.total,
-                        parts.joinToString(", "),
-                    )
+                !status.hasRemoteFile -> stringResource(R.string.drive_sync_status_no_remote_file_short)
+                differences.isInSync -> {
+                    lastSyncAtEpochMillis?.let { lastSync ->
+                        stringResource(R.string.drive_sync_last_sync, formatCreatedAt(lastSync))
+                    } ?: stringResource(R.string.drive_sync_status_synced)
                 }
+                else -> pluralStringResource(
+                    R.plurals.drive_sync_status_differences_short,
+                    differences.total,
+                    differences.total,
+                )
             }
         }
     }
@@ -1641,7 +1776,7 @@ private fun AppCard(
 }
 
 @Composable
-private fun FixedMenuBar(
+internal fun FixedMenuBar(
     title: String,
     navigationAction: (@Composable () -> Unit)? = null,
     action: (@Composable () -> Unit)? = null,
@@ -1678,7 +1813,7 @@ private fun FixedMenuBar(
                 modifier = Modifier
                     .align(Alignment.CenterStart)
                     .padding(start = if (navigationAction == null) 0.dp else 48.dp)
-                    .padding(end = 48.dp),
+                    .padding(end = if (action != null) 96.dp else 48.dp),
                 style = MaterialTheme.typography.headlineSmall,
                 fontWeight = FontWeight.Bold,
                 color = Color.White,

@@ -23,6 +23,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.core.content.ContextCompat
 import com.geison.phonereminder.diagnostics.Diagnostics
 import com.geison.phonereminder.notifications.NotificationChannels
+import com.geison.phonereminder.billing.DonationBillingController
 import com.geison.phonereminder.ui.ReminderApp
 
 class MainActivity : ComponentActivity() {
@@ -99,6 +100,7 @@ class MainActivity : ComponentActivity() {
                     onOpenReminderHandled = {
                         pendingOpenReminderId = null
                     },
+                    donationBilling = (application as PhoneReminderApplication).donationBilling,
                 )
             }
         }
