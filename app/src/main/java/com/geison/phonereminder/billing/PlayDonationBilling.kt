@@ -99,24 +99,29 @@ class PlayDonationBilling(context: Context) : DonationBillingController {
         }
     }
 
+    override fun purchaseDonation(activity: Activity) {
+        purchase(activity, DonationProducts.SMALL)
+    }
+
     override fun purchase(activity: Activity, productId: String) {
         if (!DonationProducts.isDonationProduct(productId)) {
             emitPurchaseEvent(DonationPurchaseEvent.Failed(message = null))
             return
         }
         if (!client.isReady) {
-            emitPurchaseEvent(DonationPurchaseEvent.Failed(message = null))
-            ensureConnected()
+            ensureConnected { purchase(activity, productId) }
             return
         }
         val details = detailsByProductId[productId]
         if (details == null) {
             queryProducts { result ->
-                if (result !is DonationCatalogResult.Ready) {
-                    emitPurchaseEvent(DonationPurchaseEvent.Failed(message = null))
-                    return@queryProducts
+                when (result) {
+                    is DonationCatalogResult.Ready -> launchBillingFlow(activity, productId)
+                    is DonationCatalogResult.Unavailable ->
+                        emitPurchaseEvent(DonationPurchaseEvent.Unavailable)
+                    is DonationCatalogResult.Error ->
+                        emitPurchaseEvent(DonationPurchaseEvent.Failed(result.message))
                 }
-                launchBillingFlow(activity, productId)
             }
             return
         }

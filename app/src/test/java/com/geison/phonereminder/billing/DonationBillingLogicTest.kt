@@ -10,11 +10,7 @@ class DonationBillingLogicTest {
     @Test
     fun orderedProductIds() {
         assertEquals(
-            listOf(
-                DonationProducts.SMALL,
-                DonationProducts.MEDIUM,
-                DonationProducts.LARGE,
-            ),
+            listOf(DonationProducts.SMALL),
             DonationProducts.orderedIds(),
         )
     }
@@ -25,35 +21,22 @@ class DonationBillingLogicTest {
     }
 
     @Test
-    fun mapQueriedProducts_allThree_returnsReadySorted() {
+    fun mapQueriedProducts_small_returnsReady() {
         val result = mapQueriedProducts(
-            mapOf(
-                DonationProducts.LARGE to "R$ 19,99",
-                DonationProducts.SMALL to "R$ 4,99",
-                DonationProducts.MEDIUM to "R$ 9,99",
-            ),
+            mapOf(DonationProducts.SMALL to "R$ 4,99"),
         )
         assertTrue(result is DonationCatalogResult.Ready)
         val products = (result as DonationCatalogResult.Ready).products
-        assertEquals(
-            listOf(
-                DonationProducts.SMALL,
-                DonationProducts.MEDIUM,
-                DonationProducts.LARGE,
-            ),
-            products.map { it.productId },
-        )
+        assertEquals(listOf(DonationProducts.SMALL), products.map { it.productId })
+        assertEquals("R$ 4,99", products.single().formattedPrice)
     }
 
     @Test
-    fun mapQueriedProducts_partial_returnsReadySubset() {
-        val result = mapQueriedProducts(
-            mapOf(DonationProducts.MEDIUM to "R$ 9,99"),
+    fun mapQueriedProducts_unknownProduct_returnsUnavailable() {
+        assertEquals(
+            DonationCatalogResult.Unavailable,
+            mapQueriedProducts(mapOf("other_product" to "R$ 1,00")),
         )
-        assertTrue(result is DonationCatalogResult.Ready)
-        val products = (result as DonationCatalogResult.Ready).products
-        assertEquals(1, products.size)
-        assertEquals(DonationProducts.MEDIUM, products.single().productId)
     }
 
     @Test
@@ -87,7 +70,7 @@ class DonationBillingLogicTest {
             mapPurchaseUpdate(
                 DonationBillingResponseCode.OK,
                 listOf(DonationPurchaseState.PENDING),
-                listOf(DonationProducts.LARGE),
+                listOf(DonationProducts.SMALL),
             ),
         )
     }
@@ -100,6 +83,17 @@ class DonationBillingLogicTest {
                 responseCode = 6,
                 purchaseStates = emptyList(),
                 productIds = listOf(DonationProducts.SMALL),
+            ),
+        )
+    }
+
+    @Test
+    fun mapPurchaseUpdate_nonDonationProduct_returnsNull() {
+        assertNull(
+            mapPurchaseUpdate(
+                DonationBillingResponseCode.OK,
+                listOf(DonationPurchaseState.PURCHASED),
+                listOf("unrelated"),
             ),
         )
     }
