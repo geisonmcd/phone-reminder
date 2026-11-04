@@ -1,7 +1,10 @@
 package com.geison.phonereminder.ui
 
+import android.content.ActivityNotFoundException
 import android.content.Intent
+import android.net.Uri
 import android.provider.Settings
+import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.IntentSenderRequest
@@ -34,6 +37,7 @@ import androidx.compose.material.icons.outlined.DeleteOutline
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.Save
 import androidx.compose.material.icons.outlined.Settings
+import androidx.compose.material.icons.outlined.SportsBar
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -95,6 +99,9 @@ import java.util.Date
 private const val NOTIFICATION_TEXT_WARNING_LIMIT = 300
 private const val NEW_REMINDER_ID = "new-reminder"
 
+// TODO: replace with the owner's real donation / Buy Me a Coffee link when provided.
+private const val DONATION_URL = "https://buymeacoffee.com/"
+
 private val AppBackgroundTop = Color(0xFFEAF4FF)
 private val AppBackgroundBottom = Color(0xFFF7FBFF)
 private val HeroCardTop = Color(0xFF1D4ED8)
@@ -132,6 +139,22 @@ private val ReminderColorScheme = lightColorScheme(
     error = Color(0xFFB42318),
     onError = Color.White,
 )
+
+@Composable
+internal fun ReminderPreviewTheme(content: @Composable () -> Unit) {
+    MaterialTheme(colorScheme = ReminderColorScheme) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(
+                    Brush.verticalGradient(
+                        colors = listOf(AppBackgroundTop, AppBackgroundBottom),
+                    ),
+                ),
+            content = { content() },
+        )
+    }
+}
 
 @Composable
 fun ReminderApp(
@@ -400,7 +423,7 @@ fun ReminderApp(
 }
 
 @Composable
-private fun HomeScreen(
+internal fun HomeScreen(
     reminderCount: Int,
     reminders: List<ReminderItem>,
     reminderFilter: String,
@@ -421,12 +444,38 @@ private fun HomeScreen(
     AppScaffold(
         title = stringResource(R.string.screen_title_home),
         topBarAction = {
-            IconButton(onClick = onConfig) {
-                Icon(
-                    imageVector = Icons.Outlined.Settings,
-                    contentDescription = stringResource(R.string.action_open_settings),
-                    tint = Color.White,
-                )
+            val context = LocalContext.current
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                IconButton(
+                    onClick = {
+                        try {
+                            context.startActivity(
+                                Intent(Intent.ACTION_VIEW, Uri.parse(DONATION_URL)),
+                            )
+                        } catch (_: ActivityNotFoundException) {
+                            Toast.makeText(
+                                context,
+                                context.getString(R.string.message_no_browser),
+                                Toast.LENGTH_SHORT,
+                            ).show()
+                        }
+                    },
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.SportsBar,
+                        contentDescription = stringResource(R.string.action_buy_me_a_beer),
+                        tint = Color.White,
+                    )
+                }
+                IconButton(onClick = onConfig) {
+                    Icon(
+                        imageVector = Icons.Outlined.Settings,
+                        contentDescription = stringResource(R.string.action_open_settings),
+                        tint = Color.White,
+                    )
+                }
             }
         },
         floatingActionButton = {
@@ -1641,7 +1690,7 @@ private fun AppCard(
 }
 
 @Composable
-private fun FixedMenuBar(
+internal fun FixedMenuBar(
     title: String,
     navigationAction: (@Composable () -> Unit)? = null,
     action: (@Composable () -> Unit)? = null,
@@ -1678,7 +1727,7 @@ private fun FixedMenuBar(
                 modifier = Modifier
                     .align(Alignment.CenterStart)
                     .padding(start = if (navigationAction == null) 0.dp else 48.dp)
-                    .padding(end = 48.dp),
+                    .padding(end = if (action != null) 96.dp else 48.dp),
                 style = MaterialTheme.typography.headlineSmall,
                 fontWeight = FontWeight.Bold,
                 color = Color.White,

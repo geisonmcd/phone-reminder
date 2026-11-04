@@ -81,6 +81,8 @@
     <string name="screen_title_edit_reminder">Editar lembrete</string>
 
     <string name="action_open_settings">Abrir configurações</string>
+    <string name="action_buy_me_a_beer">Me pague uma cerveja</string>
+    <string name="message_no_browser">Nenhum navegador encontrado para abrir o link.</string>
     <string name="action_add_reminder">Adicionar lembrete</string>
     <string name="action_back_to_reminders">Voltar para lembretes</string>
     <string name="action_back_to_config">Voltar para configurações</string>
