@@ -36,7 +36,7 @@ import androidx.compose.material.icons.outlined.DeleteOutline
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.Save
 import androidx.compose.material.icons.outlined.Settings
-import androidx.compose.material.icons.outlined.SportsBar
+import androidx.compose.material.icons.outlined.AttachMoney
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material.icons.outlined.Cloud
 import androidx.compose.material3.AlertDialog
@@ -1265,7 +1265,7 @@ internal fun HomeDriveBeerRow(
         } else {
             Spacer(modifier = Modifier.weight(1f))
         }
-        BeerDonateButton(
+        DonateButton(
             busy = donationBusy,
             onClick = onBuyBeer,
         )
@@ -1341,14 +1341,14 @@ private fun CompactDriveSyncCard(
 }
 
 @Composable
-private fun BeerDonateButton(
+private fun DonateButton(
     busy: Boolean,
     onClick: () -> Unit,
 ) {
-    val beerSize = 60.dp
+    val buttonSize = 60.dp
     Card(
         modifier = Modifier
-            .size(beerSize)
+            .size(buttonSize)
             .clickable(enabled = !busy, onClick = onClick),
         shape = AppCardShape,
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.55f)),
@@ -1366,8 +1366,8 @@ private fun BeerDonateButton(
                 )
             } else {
                 Icon(
-                    imageVector = Icons.Outlined.SportsBar,
-                    contentDescription = stringResource(R.string.action_buy_me_a_beer),
+                    imageVector = Icons.Outlined.AttachMoney,
+                    contentDescription = stringResource(R.string.action_donate),
                     tint = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.size(28.dp),
                 )
