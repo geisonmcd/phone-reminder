@@ -1,10 +1,8 @@
 package com.geison.phonereminder.ui
 
-import android.content.ActivityNotFoundException
 import android.content.Intent
-import android.net.Uri
 import android.provider.Settings
-import android.widget.Toast
+import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.IntentSenderRequest
@@ -85,6 +83,9 @@ import com.geison.phonereminder.DriveSyncUiState
 import com.geison.phonereminder.ImportPreviewResult
 import com.geison.phonereminder.MainViewModel
 import com.geison.phonereminder.R
+import com.geison.phonereminder.billing.DonationBillingController
+import com.geison.phonereminder.billing.DonationCatalogResult
+import com.geison.phonereminder.billing.DonationPurchaseEvent
 import com.geison.phonereminder.data.MAX_NOTIFICATIONS_PER_DAY
 import com.geison.phonereminder.data.NotificationWindowSettings
 import com.geison.phonereminder.data.ReminderItem
@@ -98,9 +99,6 @@ import java.util.Date
 
 private const val NOTIFICATION_TEXT_WARNING_LIMIT = 300
 private const val NEW_REMINDER_ID = "new-reminder"
-
-// TODO: replace with the owner's real donation / Buy Me a Coffee link when provided.
-private const val DONATION_URL = "https://buymeacoffee.com/"
 
 private val AppBackgroundTop = Color(0xFFEAF4FF)
 private val AppBackgroundBottom = Color(0xFFF7FBFF)
@@ -161,6 +159,7 @@ fun ReminderApp(
     viewModel: MainViewModel,
     openReminderId: String? = null,
     onOpenReminderHandled: () -> Unit = {},
+    donationBilling: DonationBillingController,
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     var reminderFilter by rememberSaveable { mutableStateOf("") }
@@ -170,6 +169,10 @@ fun ReminderApp(
     var showingPrivacyPolicy by rememberSaveable { mutableStateOf(false) }
     var configMessage by rememberSaveable { mutableStateOf<String?>(null) }
     var pendingImport by remember { mutableStateOf<ImportPreviewResult.Ready?>(null) }
+    var showDonationSheet by rememberSaveable { mutableStateOf(false) }
+    var donationCatalogLoading by remember { mutableStateOf(false) }
+    var donationCatalogResult by remember { mutableStateOf<DonationCatalogResult?>(null) }
+    var donationPurchaseEvent by remember { mutableStateOf<DonationPurchaseEvent?>(null) }
     val googleDriveConsentRequest by viewModel.googleDriveConsentRequest.collectAsStateWithLifecycle()
     val driveSyncState by viewModel.driveSyncUiState.collectAsStateWithLifecycle()
     val context = LocalContext.current
@@ -219,6 +222,31 @@ fun ReminderApp(
             )
         }.onFailure { error -> viewModel.onGoogleDriveConsentLaunchFailed(error) }
     }
+
+    LaunchedEffect(donationBilling) {
+        donationBilling.start { event ->
+            if (event is DonationPurchaseEvent.Cancelled) {
+                return@start
+            }
+            donationPurchaseEvent = event
+        }
+    }
+
+    LaunchedEffect(showDonationSheet) {
+        if (!showDonationSheet) {
+            return@LaunchedEffect
+        }
+        donationCatalogLoading = true
+        donationPurchaseEvent = null
+        donationCatalogResult = null
+        donationBilling.consumeUnconsumedPurchases()
+        donationBilling.queryProducts { result ->
+            donationCatalogLoading = false
+            donationCatalogResult = result
+        }
+    }
+
+    val activity = context as? ComponentActivity
 
     val isCreatingNewReminder = selectedReminderId == NEW_REMINDER_ID
     val selectedReminder = if (isCreatingNewReminder) {
@@ -366,6 +394,7 @@ fun ReminderApp(
                             configMessage = null
                             showingConfig = true
                         },
+                        onBuyBeer = { showDonationSheet = true },
                         onNewReminder = {
                             newReminderCreatedAt = System.currentTimeMillis()
                             selectedReminderId = NEW_REMINDER_ID
@@ -377,7 +406,6 @@ fun ReminderApp(
                     )
                 }
             }
-
             pendingImport?.let { importPreview ->
                 AlertDialog(
                     onDismissRequest = { pendingImport = null },
@@ -418,6 +446,17 @@ fun ReminderApp(
                     },
                 )
             }
+
+            DonationBottomSheet(
+                visible = showDonationSheet,
+                isLoading = donationCatalogLoading,
+                catalogResult = donationCatalogResult,
+                purchaseEvent = donationPurchaseEvent,
+                onDismiss = { showDonationSheet = false },
+                onProductClick = { productId ->
+                    activity?.let { donationBilling.purchase(it, productId) }
+                },
+            )
         }
     }
 }
@@ -429,6 +468,7 @@ internal fun HomeScreen(
     reminderFilter: String,
     onFilterChange: (String) -> Unit,
     onConfig: () -> Unit,
+    onBuyBeer: () -> Unit = {},
     onNewReminder: () -> Unit,
     onEdit: (String) -> Unit,
     driveSyncState: DriveSyncUiState,
@@ -444,25 +484,10 @@ internal fun HomeScreen(
     AppScaffold(
         title = stringResource(R.string.screen_title_home),
         topBarAction = {
-            val context = LocalContext.current
             Row(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                IconButton(
-                    onClick = {
-                        try {
-                            context.startActivity(
-                                Intent(Intent.ACTION_VIEW, Uri.parse(DONATION_URL)),
-                            )
-                        } catch (_: ActivityNotFoundException) {
-                            Toast.makeText(
-                                context,
-                                context.getString(R.string.message_no_browser),
-                                Toast.LENGTH_SHORT,
-                            ).show()
-                        }
-                    },
-                ) {
+                IconButton(onClick = onBuyBeer) {
                     Icon(
                         imageVector = Icons.Outlined.SportsBar,
                         contentDescription = stringResource(R.string.action_buy_me_a_beer),

@@ -82,7 +82,14 @@
 
     <string name="action_open_settings">Abrir configurações</string>
     <string name="action_buy_me_a_beer">Me pague uma cerveja</string>
-    <string name="message_no_browser">Nenhum navegador encontrado para abrir o link.</string>
+    <string name="donation_sheet_body">Escolha o tamanho da cerveja. Obrigado por apoiar o Smart Random Reminder!</string>
+    <string name="donation_beer_small">Cerveja pequena</string>
+    <string name="donation_beer_medium">Cerveja média</string>
+    <string name="donation_beer_large">Cerveja grande</string>
+    <string name="donation_unavailable">Doações não estão disponíveis no momento.</string>
+    <string name="donation_thank_you">Obrigado pela cerveja! 🍺</string>
+    <string name="donation_pending">Seu pagamento está pendente. Obrigado pelo apoio!</string>
+    <string name="donation_error">Algo deu errado. Tente novamente mais tarde.</string>
     <string name="action_add_reminder">Adicionar lembrete</string>
     <string name="action_back_to_reminders">Voltar para lembretes</string>
     <string name="action_back_to_config">Voltar para configurações</string>

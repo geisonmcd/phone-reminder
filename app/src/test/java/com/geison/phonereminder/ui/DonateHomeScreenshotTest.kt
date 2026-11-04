@@ -1,18 +1,21 @@
 package com.geison.phonereminder.ui
 
-import androidx.compose.foundation.layout.Row
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.Settings
-import androidx.compose.material.icons.outlined.SportsBar
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.graphics.Color
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
 import com.geison.phonereminder.DriveSyncStatus
-import com.geison.phonereminder.DriveSyncUiState
 import com.geison.phonereminder.R
+import com.geison.phonereminder.DriveSyncUiState
+import com.geison.phonereminder.billing.DonationCatalogResult
+import com.geison.phonereminder.billing.DonationProduct
+import com.geison.phonereminder.billing.DonationProducts
 import com.geison.phonereminder.data.ReminderItem
 import com.geison.phonereminder.data.ScheduleSettings
 import com.github.takahirom.roborazzi.captureRoboImage
@@ -56,6 +59,14 @@ class DonateHomeScreenshotTest {
         lastSyncAtEpochMillis = null,
     )
 
+    private val fakeDonationProducts = DonationCatalogResult.Ready(
+        products = listOf(
+            DonationProduct(DonationProducts.SMALL, "R$ 4,99"),
+            DonationProduct(DonationProducts.MEDIUM, "R$ 9,99"),
+            DonationProduct(DonationProducts.LARGE, "R$ 19,99"),
+        ),
+    )
+
     @Test
     @Config(qualifiers = "w412dp-h915dp-xhdpi")
     fun captureHomeScreenPreview() {
@@ -78,37 +89,32 @@ class DonateHomeScreenshotTest {
     }
 
     @Test
-    @Config(qualifiers = "w412dp-h120dp-xhdpi")
-    fun captureTopBarPreview() {
-        captureRoboImage(filePath = "/workspace/donate_topbar_preview.png") {
+    @Config(qualifiers = "w412dp-h640dp-xhdpi")
+    fun captureDonationSheetPreview() {
+        captureRoboImage(filePath = "/workspace/donate_sheet_preview.png") {
             ReminderPreviewTheme {
-                FixedMenuBar(
-                    title = stringResource(R.string.screen_title_home),
-                    action = { HomeTopBarActionsPreview(onConfig = {}) },
-                )
+                Surface(color = MaterialTheme.colorScheme.surface) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 24.dp, bottom = 32.dp),
+                    ) {
+                        Text(
+                            text = stringResource(R.string.action_buy_me_a_beer),
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.padding(horizontal = 24.dp),
+                        )
+                        DonationSheetContent(
+                            isLoading = false,
+                            catalogResult = fakeDonationProducts,
+                            purchaseEvent = null,
+                            onProductClick = {},
+                            modifier = Modifier.padding(top = 8.dp),
+                        )
+                    }
+                }
             }
-        }
-    }
-}
-
-@Composable
-private fun HomeTopBarActionsPreview(onConfig: () -> Unit) {
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        IconButton(onClick = {}) {
-            Icon(
-                imageVector = Icons.Outlined.SportsBar,
-                contentDescription = stringResource(R.string.action_buy_me_a_beer),
-                tint = Color.White,
-            )
-        }
-        IconButton(onClick = onConfig) {
-            Icon(
-                imageVector = Icons.Outlined.Settings,
-                contentDescription = stringResource(R.string.action_open_settings),
-                tint = Color.White,
-            )
         }
     }
 }

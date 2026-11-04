@@ -162,6 +162,7 @@ dependencies {
     implementation("com.google.firebase:firebase-crashlytics")
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.3")
     implementation("com.google.android.gms:play-services-auth:21.4.0")
+    implementation("com.android.billingclient:billing:8.3.0")
     implementation("androidx.lifecycle:lifecycle-viewmodel-ktx:2.8.3")
 
     debugImplementation("androidx.compose.ui:ui-tooling")
