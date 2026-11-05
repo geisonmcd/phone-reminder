@@ -653,18 +653,21 @@ async function convertUsdPrice(androidpublisher) {
   if (playPrices.size === 0) {
     throw new Error("convertRegionPrices returned no convertedRegionPrices.");
   }
+  const regionVersion = response.data.regionVersion?.version || REGIONS_VERSION;
   console.log(
-    `Play converted USD ${TARGET_USD} for ${playPrices.size} regions (region version ${response.data.regionVersion?.version ?? "unknown"}).`,
+    `Play converted USD ${TARGET_USD} for ${playPrices.size} regions (region version ${regionVersion}).`,
   );
-  return playPrices;
+  return { playPrices, regionVersion };
 }
 
-async function patchProduct(androidpublisher, product) {
+async function patchProduct(androidpublisher, product, regionVersion) {
+  const version = regionVersion || REGIONS_VERSION;
+  console.log(`Patching one-time product with regions version ${version}.`);
   const params = {
     packageName: PACKAGE_NAME,
     productId: PRODUCT_ID,
     updateMask: "purchaseOptions",
-    "regionsVersion.version": REGIONS_VERSION,
+    "regionsVersion.version": version,
     allowMissing: false,
     requestBody: requestBody(product),
   };
@@ -749,7 +752,7 @@ async function main() {
   const buy = findBuyOption(original);
   const existingConfigs = buy.regionalPricingAndAvailabilityConfigs || [];
 
-  const playPrices = await convertUsdPrice(androidpublisher);
+  const { playPrices, regionVersion } = await convertUsdPrice(androidpublisher);
   const csvByRegion = readDonationCsv(CSV_PATH);
   let rows = buildResolvedRows({ playPrices, existingConfigs, csvByRegion });
   writeResolvedCsv(rows);
@@ -766,7 +769,7 @@ async function main() {
   const fellBack = [];
   for (let attempt = 0; ; attempt++) {
     try {
-      await patchProduct(androidpublisher, patched);
+      await patchProduct(androidpublisher, patched, regionVersion);
       break;
     } catch (error) {
       const message = formatApiError(error);
