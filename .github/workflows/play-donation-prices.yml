@@ -1,0 +1,48 @@
+name: Play donation prices
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: Resolve prices and print the diff without updating Google Play.
+        required: false
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: play-donation-prices
+  cancel-in-progress: false
+
+jobs:
+  prices:
+    name: Apply donation prices
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install Google API client
+        run: npm install googleapis@189.0.0
+
+      - name: Apply donation prices
+        env:
+          PLAY_SERVICE_ACCOUNT_JSON: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
+          DRY_RUN: ${{ inputs.dry_run == false && 'false' || 'true' }}
+        run: node play-store/scripts/apply-donation-prices.mjs
+
+      - name: Upload resolved prices
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: resolved-prices
+          path: play-store/out/resolved-prices.csv
+          if-no-files-found: warn
