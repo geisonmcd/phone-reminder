@@ -36,7 +36,7 @@ import androidx.compose.material.icons.outlined.DeleteOutline
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.Save
 import androidx.compose.material.icons.outlined.Settings
-import androidx.compose.material.icons.outlined.AttachMoney
+import androidx.compose.material.icons.outlined.Coffee
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material.icons.outlined.Cloud
 import androidx.compose.material3.AlertDialog
@@ -405,7 +405,7 @@ fun ReminderApp(
                             configMessage = null
                             showingConfig = true
                         },
-                        onBuyBeer = {
+                        onBuyCoffee = {
                             activity?.let { host ->
                                 donationBusy = true
                                 donationBilling.consumeUnconsumedPurchases()
@@ -476,7 +476,7 @@ internal fun HomeScreen(
     reminderFilter: String,
     onFilterChange: (String) -> Unit,
     onConfig: () -> Unit,
-    onBuyBeer: () -> Unit = {},
+    onBuyCoffee: () -> Unit = {},
     donationBusy: Boolean = false,
     onNewReminder: () -> Unit,
     onEdit: (String) -> Unit,
@@ -515,12 +515,12 @@ internal fun HomeScreen(
         },
     ) {
         item {
-            HomeDriveBeerRow(
+            HomeDriveDonateRow(
                 driveSyncState = driveSyncState,
                 donationBusy = donationBusy,
                 onConnect = onDriveConnect,
                 onSyncNow = onDriveSyncNow,
-                onBuyBeer = onBuyBeer,
+                onBuyCoffee = onBuyCoffee,
             )
         }
 
@@ -1242,12 +1242,12 @@ private fun BackupActionsCard(
 }
 
 @Composable
-internal fun HomeDriveBeerRow(
+internal fun HomeDriveDonateRow(
     driveSyncState: DriveSyncUiState,
     donationBusy: Boolean,
     onConnect: () -> Unit,
     onSyncNow: () -> Unit,
-    onBuyBeer: () -> Unit,
+    onBuyCoffee: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Row(
@@ -1267,7 +1267,7 @@ internal fun HomeDriveBeerRow(
         }
         DonateButton(
             busy = donationBusy,
-            onClick = onBuyBeer,
+            onClick = onBuyCoffee,
         )
     }
 }
@@ -1366,7 +1366,7 @@ private fun DonateButton(
                 )
             } else {
                 Icon(
-                    imageVector = Icons.Outlined.AttachMoney,
+                    imageVector = Icons.Outlined.Coffee,
                     contentDescription = stringResource(R.string.action_donate),
                     tint = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.size(28.dp),

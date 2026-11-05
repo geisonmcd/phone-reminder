@@ -1,6 +1,7 @@
 package com.geison.phonereminder.ui
 
 import androidx.compose.foundation.layout.padding
+import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.geison.phonereminder.DriveSyncStatus
@@ -32,12 +33,30 @@ class DonateHomeScreenshotTest {
         return "build/roborazzi-previews/$fileName"
     }
 
-    private fun mirrorPreviewToWorkspace(fileName: String) {
+    private fun mirrorPreviewToWorkspace(fileName: String, destFileName: String = fileName) {
         val workspaceDir = File("/workspace")
         if (!workspaceDir.isDirectory) return
         val source = File("build/roborazzi-previews", fileName)
         if (source.isFile) {
-            source.copyTo(File(workspaceDir, fileName), overwrite = true)
+            source.copyTo(File(workspaceDir, destFileName), overwrite = true)
+        }
+    }
+
+    @Composable
+    private fun HomePreview(driveSyncState: DriveSyncUiState) {
+        ReminderPreviewTheme {
+            HomeScreen(
+                reminderCount = sampleReminders.size,
+                reminders = sampleReminders,
+                reminderFilter = "",
+                onFilterChange = {},
+                onConfig = {},
+                onNewReminder = {},
+                onEdit = {},
+                driveSyncState = driveSyncState,
+                onDriveConnect = {},
+                onDriveSyncNow = {},
+            )
         }
     }
 
@@ -96,20 +115,19 @@ class DonateHomeScreenshotTest {
     fun captureHomeScreenPreview() {
         val fileName = "donate_home_preview.png"
         captureRoboImage(filePath = roborazziPreviewPath(fileName)) {
-            ReminderPreviewTheme {
-                HomeScreen(
-                    reminderCount = sampleReminders.size,
-                    reminders = sampleReminders,
-                    reminderFilter = "",
-                    onFilterChange = {},
-                    onConfig = {},
-                    onNewReminder = {},
-                    onEdit = {},
-                    driveSyncState = driveSyncDifferencesState,
-                    onDriveConnect = {},
-                    onDriveSyncNow = {},
-                )
-            }
+            HomePreview(driveSyncDifferencesState)
+        }
+        mirrorPreviewToWorkspace(fileName)
+        mirrorPreviewToWorkspace(fileName, "coffee_home_preview.png")
+        mirrorPreviewToWorkspace(fileName, "coffee_home_preview_en.png")
+    }
+
+    @Test
+    @Config(qualifiers = "pt-rBR-w412dp-h915dp-xhdpi")
+    fun captureHomeScreenPreviewPt() {
+        val fileName = "coffee_home_preview_pt.png"
+        captureRoboImage(filePath = roborazziPreviewPath(fileName)) {
+            HomePreview(driveSyncDifferencesState)
         }
         mirrorPreviewToWorkspace(fileName)
     }
@@ -119,36 +137,23 @@ class DonateHomeScreenshotTest {
     fun captureHomeNotConnectedPreview() {
         val fileName = "donate_home_notconnected.png"
         captureRoboImage(filePath = roborazziPreviewPath(fileName)) {
-            ReminderPreviewTheme {
-                HomeScreen(
-                    reminderCount = sampleReminders.size,
-                    reminders = sampleReminders,
-                    reminderFilter = "",
-                    onFilterChange = {},
-                    onConfig = {},
-                    onNewReminder = {},
-                    onEdit = {},
-                    driveSyncState = driveSyncNotConnectedState,
-                    onDriveConnect = {},
-                    onDriveSyncNow = {},
-                )
-            }
+            HomePreview(driveSyncNotConnectedState)
         }
         mirrorPreviewToWorkspace(fileName)
     }
 
     @Test
     @Config(qualifiers = "w412dp-h120dp-xhdpi")
-    fun captureDriveBeerRowPreview() {
+    fun captureDriveDonateRowPreview() {
         val fileName = "donate_row_preview.png"
         captureRoboImage(filePath = roborazziPreviewPath(fileName)) {
             ReminderPreviewTheme {
-                HomeDriveBeerRow(
+                HomeDriveDonateRow(
                     driveSyncState = driveSyncDifferencesState,
                     donationBusy = false,
                     onConnect = {},
                     onSyncNow = {},
-                    onBuyBeer = {},
+                    onBuyCoffee = {},
                     modifier = Modifier.padding(horizontal = 18.dp),
                 )
             }
