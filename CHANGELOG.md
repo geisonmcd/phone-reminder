@@ -1,5 +1,6 @@
 # Changelog
 
+- 2026-11-04 — Changed donation wording from beer/donate to buy-me-a-coffee style labels (“Buy me a coffee” / “Me pague um café”).
 - 2026-11-04 — Uploaded the donate button and compact Drive card to Play internal testing as 1.0.41 (44), with Firebase Crashlytics config and mapping upload in CI.
 - 2026-11-04 — Added an optional donate dollar button (R$ 4,99 via Google Play) beside the compact Drive card on the home screen; no title-bar icon or size picker sheet.
 - 2026-11-04 — Fixed Drive sync mislabeling phone-only edits as "edited on both" by comparing against a post-sync baseline and clearer difference labels on the home card.

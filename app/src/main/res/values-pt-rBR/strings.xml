@@ -96,9 +96,9 @@
     <string name="screen_title_edit_reminder">Editar lembrete</string>
 
     <string name="action_open_settings">Abrir configurações</string>
-    <string name="action_donate">Doar</string>
+    <string name="action_donate">Me pague um café</string>
     <string name="donation_unavailable">Doações não estão disponíveis no momento.</string>
-    <string name="donation_thank_you">Obrigado pela doação!</string>
+    <string name="donation_thank_you">Obrigado pelo café!</string>
     <string name="donation_pending">Seu pagamento está pendente. Obrigado pelo apoio!</string>
     <string name="donation_error">Algo deu errado. Tente novamente mais tarde.</string>
     <string name="action_add_reminder">Adicionar lembrete</string>

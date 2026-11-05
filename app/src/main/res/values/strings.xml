@@ -83,9 +83,9 @@
     <string name="screen_title_edit_reminder">Edit reminder</string>
 
     <string name="action_open_settings">Open settings</string>
-    <string name="action_donate">Donate</string>
+    <string name="action_donate">Buy me a coffee</string>
     <string name="donation_unavailable">Donations aren\'t available right now.</string>
-    <string name="donation_thank_you">Thanks for your donation!</string>
+    <string name="donation_thank_you">Thanks for the coffee!</string>
     <string name="donation_pending">Your payment is pending. Thanks for your support!</string>
     <string name="donation_error">Something went wrong. Please try again later.</string>
     <string name="action_add_reminder">Add reminder</string>

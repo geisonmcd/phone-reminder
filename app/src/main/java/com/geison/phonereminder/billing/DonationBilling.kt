@@ -71,7 +71,7 @@ interface DonationBillingController {
     fun start(onEvent: (DonationPurchaseEvent) -> Unit)
     fun queryProducts(callback: (DonationCatalogResult) -> Unit)
     fun purchase(activity: Activity, productId: String)
-    /** Queries product details if needed, then launches billing for the single beer tip. */
+    /** Queries product details if needed, then launches billing for the single coffee tip. */
     fun purchaseDonation(activity: Activity)
     fun consumeUnconsumedPurchases()
     fun close()
