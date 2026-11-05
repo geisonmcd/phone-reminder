@@ -36,7 +36,7 @@ import androidx.compose.material.icons.outlined.DeleteOutline
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.Save
 import androidx.compose.material.icons.outlined.Settings
-import androidx.compose.material.icons.outlined.AttachMoney
+import androidx.compose.material.icons.outlined.Coffee
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material.icons.outlined.Cloud
 import androidx.compose.material3.AlertDialog
@@ -1366,7 +1366,7 @@ private fun DonateButton(
                 )
             } else {
                 Icon(
-                    imageVector = Icons.Outlined.AttachMoney,
+                    imageVector = Icons.Outlined.Coffee,
                     contentDescription = stringResource(R.string.action_donate),
                     tint = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.size(28.dp),
